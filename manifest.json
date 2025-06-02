@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "ChatGPT Snippet Saver",
+  "name": "StackGPT - Save Snippets on ChatGPT",
   "version": "0.1",
   "description": "Save and manage chat snippets in a sidebar that matches ChatGPT's UI.",
   "content_scripts": [
