@@ -43,7 +43,7 @@ console.log('ChatGPT Snippet Saver content script loaded');
   function saveSnippet(snippet) {
     try {
       const snippets = JSON.parse(localStorage.getItem(SNIPPET_KEY) || '[]');
-      snippets.unshift(snippet);
+      snippets.push(snippet);
       localStorage.setItem(SNIPPET_KEY, JSON.stringify(snippets));
     } catch (e) {
       console.error('Save snippet error:', e);
@@ -207,24 +207,34 @@ console.log('ChatGPT Snippet Saver content script loaded');
     }
     // Drag-and-drop state
     let dragSrcIdx = null;
+    let dropTargetIdx = null;
+    let dropIndicator = null;
     function handleDragStart(e) {
       dragSrcIdx = +e.currentTarget.getAttribute('data-idx');
       e.dataTransfer.effectAllowed = 'move';
       e.dataTransfer.setData('text/plain', dragSrcIdx);
       e.currentTarget.classList.add('dragging');
+      document.body.style.cursor = 'grabbing';
     }
     function handleDragOver(e) {
       e.preventDefault();
       e.dataTransfer.dropEffect = 'move';
-      e.currentTarget.classList.add('drag-over');
+      const overIdx = +e.currentTarget.getAttribute('data-idx');
+      if (dropTargetIdx !== overIdx) {
+        dropTargetIdx = overIdx;
+        showDropIndicator(overIdx, e.currentTarget);
+      }
     }
     function handleDragLeave(e) {
       e.currentTarget.classList.remove('drag-over');
+      hideDropIndicator();
     }
     function handleDrop(e) {
       e.preventDefault();
       const fromIdx = dragSrcIdx;
-      const toIdx = +e.currentTarget.getAttribute('data-idx');
+      const toIdx = dropTargetIdx;
+      hideDropIndicator();
+      document.body.style.cursor = '';
       if (fromIdx === toIdx) return;
       // Reorder
       const moved = snippets.splice(fromIdx, 1)[0];
@@ -236,6 +246,21 @@ console.log('ChatGPT Snippet Saver content script loaded');
       document.querySelectorAll('.sgpt-snippet-item').forEach(item => {
         item.classList.remove('dragging', 'drag-over');
       });
+      hideDropIndicator();
+      document.body.style.cursor = '';
+    }
+    function showDropIndicator(idx, targetElem) {
+      hideDropIndicator();
+      dropIndicator = document.createElement('div');
+      dropIndicator.className = 'sgpt-drop-indicator';
+      targetElem.parentNode.insertBefore(dropIndicator, targetElem);
+    }
+    function hideDropIndicator() {
+      if (dropIndicator && dropIndicator.parentNode) {
+        dropIndicator.parentNode.removeChild(dropIndicator);
+      }
+      dropIndicator = null;
+      dropTargetIdx = null;
     }
     // Render each snippet
     snippets.forEach((snip, idx) => {
@@ -685,7 +710,7 @@ console.log('ChatGPT Snippet Saver content script loaded');
       padding: 1.5em 1.2em 1.2em 1.2em;
       min-height: 3.5em;
       cursor: grab;
-      transition: box-shadow 0.18s, background 0.18s;
+      transition: box-shadow 0.18s, background 0.18s, transform 0.18s;
       background: var(--bg-secondary,#fff);
       border-radius: 12px;
       margin-bottom: 1em;
@@ -694,15 +719,27 @@ console.log('ChatGPT Snippet Saver content script loaded');
       flex-direction: column;
       gap: 0.5em;
       box-sizing: border-box;
+      z-index: 1;
     }
     #${SIDEBAR_ID} .sgpt-snippet-item.dragging {
-      opacity: 0.5;
-      background: var(--gray-100,#f3f4f6);
-      box-shadow: none;
+      opacity: 0.85;
+      background: var(--bg-primary,#fff);
+      box-shadow: 0 4px 24px 0 rgba(0,0,0,0.10);
+      transform: scale(1.03);
+      cursor: grabbing;
+      z-index: 2;
     }
-    #${SIDEBAR_ID} .sgpt-snippet-item.drag-over {
-      background: var(--gray-100,#f3f4f6);
-      box-shadow: none;
+    #${SIDEBAR_ID} .sgpt-drop-indicator {
+      height: 0;
+      border-top: 2.5px solid var(--text-primary,#222);
+      margin: -0.5em 0 0.5em 0;
+      border-radius: 2px;
+      transition: border-color 0.18s, margin 0.18s;
+      animation: sgpt-drop-indicator-fadein 0.18s;
+    }
+    @keyframes sgpt-drop-indicator-fadein {
+      from { opacity: 0; }
+      to { opacity: 1; }
     }
     #${SIDEBAR_ID} .sgpt-x-btn {
       position: absolute;
