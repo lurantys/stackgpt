@@ -205,54 +205,114 @@ console.log('ChatGPT Snippet Saver content script loaded');
       list.innerHTML = '<div style="color:var(--text-secondary,#888);padding:1em;">No snippets saved yet.</div>';
       return;
     }
-    if (!window.sgptSelectedSnippets) window.sgptSelectedSnippets = {};
+    // Drag-and-drop state
+    let dragSrcIdx = null;
+    function handleDragStart(e) {
+      dragSrcIdx = +e.currentTarget.getAttribute('data-idx');
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/plain', dragSrcIdx);
+      e.currentTarget.classList.add('dragging');
+    }
+    function handleDragOver(e) {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      e.currentTarget.classList.add('drag-over');
+    }
+    function handleDragLeave(e) {
+      e.currentTarget.classList.remove('drag-over');
+    }
+    function handleDrop(e) {
+      e.preventDefault();
+      const fromIdx = dragSrcIdx;
+      const toIdx = +e.currentTarget.getAttribute('data-idx');
+      if (fromIdx === toIdx) return;
+      // Reorder
+      const moved = snippets.splice(fromIdx, 1)[0];
+      snippets.splice(toIdx, 0, moved);
+      localStorage.setItem(SNIPPET_KEY, JSON.stringify(snippets));
+      renderSnippets();
+    }
+    function handleDragEnd(e) {
+      document.querySelectorAll('.sgpt-snippet-item').forEach(item => {
+        item.classList.remove('dragging', 'drag-over');
+      });
+    }
+    // Render each snippet
     snippets.forEach((snip, idx) => {
       const item = document.createElement('div');
       item.className = 'sgpt-snippet-item';
-      item.innerHTML = `
-        <div class="sgpt-snippet-meta">
-          <input type="checkbox" class="sgpt-select-checkbox" data-idx="${idx}" ${window.sgptSelectedSnippets[idx] ? 'checked' : ''}>
-          <span class="sgpt-snippet-title">${snip.title || 'Untitled'}</span>
-          <span class="sgpt-snippet-date">${new Date(snip.date).toLocaleString()}</span>
-        </div>
-        <pre class="sgpt-snippet-text">${snip.text.replace(/</g, '&lt;')}</pre>
-        <div class="sgpt-snippet-actions">
-          <button class="sgpt-cleanup-btn" data-idx="${idx}" title="Cleanup with AI">🪄 Cleanup</button>
-          <button class="sgpt-delete-btn" data-idx="${idx}" title="Delete snippet">🗑️ Delete</button>
-        </div>
-      `;
+      item.setAttribute('data-idx', idx);
+      item.setAttribute('draggable', 'true');
+      // Modern X button for delete
+      const xBtn = document.createElement('button');
+      xBtn.className = 'sgpt-x-btn';
+      xBtn.title = 'Delete snippet';
+      xBtn.innerHTML = '&times;';
+      xBtn.onclick = (e) => {
+        e.stopPropagation();
+        snippets.splice(idx, 1);
+        localStorage.setItem(SNIPPET_KEY, JSON.stringify(snippets));
+        renderSnippets();
+      };
+      // Editable snippet text
+      const editable = document.createElement('div');
+      editable.className = 'sgpt-snippet-editable';
+      editable.contentEditable = 'true';
+      editable.spellcheck = true;
+      editable.innerText = snip.text;
+      editable.onblur = () => {
+        if (editable.innerText !== snip.text) {
+          snippets[idx].text = editable.innerText;
+          localStorage.setItem(SNIPPET_KEY, JSON.stringify(snippets));
+        }
+      };
+      // Drag events
+      item.addEventListener('dragstart', handleDragStart);
+      item.addEventListener('dragover', handleDragOver);
+      item.addEventListener('dragleave', handleDragLeave);
+      item.addEventListener('drop', handleDrop);
+      item.addEventListener('dragend', handleDragEnd);
+      // Layout
+      item.appendChild(xBtn);
+      item.appendChild(editable);
       list.appendChild(item);
     });
-    // Attach AI cleanup listeners
-    list.querySelectorAll('.sgpt-cleanup-btn').forEach(btn => {
-      btn.onclick = (e) => {
-        const idx = +btn.getAttribute('data-idx');
-        aiCleanupSnippet(idx);
-      };
-    });
-    // Attach delete listeners
-    list.querySelectorAll('.sgpt-delete-btn').forEach(btn => {
-      btn.onclick = (e) => {
-        const idx = +btn.getAttribute('data-idx');
-        deleteSnippet(idx);
-      };
-    });
-    // Attach checkbox listeners
-    list.querySelectorAll('.sgpt-select-checkbox').forEach(cb => {
-      cb.onchange = (e) => {
-        const idx = cb.getAttribute('data-idx');
-        window.sgptSelectedSnippets[idx] = cb.checked;
-      };
-    });
-    // Add or update the Cleanup Selected button in the footer
+    // Add or update the Copy to Chat button in the footer
     let footer = sidebar.querySelector('.sgpt-sidebar-footer');
-    if (!footer.querySelector('.sgpt-cleanup-selected-btn')) {
-      const cleanupSelectedBtn = document.createElement('button');
-      cleanupSelectedBtn.className = 'sgpt-cleanup-selected-btn';
-      cleanupSelectedBtn.textContent = 'Cleanup Selected';
-      cleanupSelectedBtn.style.marginRight = '8px';
-      cleanupSelectedBtn.onclick = cleanupSelectedSnippets;
-      footer.insertBefore(cleanupSelectedBtn, footer.firstChild);
+    let copyBtn = footer.querySelector('.sgpt-copy-to-chat-btn');
+    if (!copyBtn) {
+      copyBtn = document.createElement('button');
+      copyBtn.className = 'sgpt-copy-to-chat-btn';
+      copyBtn.textContent = 'Copy to Chat';
+      copyBtn.style.marginRight = '8px';
+      copyBtn.onclick = () => {
+        const snippets = loadSnippets();
+        const text = snippets.map(s => s.text).join('\n\n');
+        // Try to find the ChatGPT chat textbox (prefer new ProseMirror input)
+        let input = document.querySelector('div#prompt-textarea[contenteditable="true"]');
+        if (!input) {
+          // Fallback: any visible contenteditable div
+          input = Array.from(document.querySelectorAll('div[role="textbox"]')).find(el => el.isContentEditable && el.offsetParent !== null);
+        }
+        if (!input) {
+          // Fallback: any visible textarea
+          input = Array.from(document.querySelectorAll('textarea')).find(el => el.offsetParent !== null);
+        }
+        if (input) {
+          if (input.tagName === 'TEXTAREA') {
+            input.value = text;
+            input.dispatchEvent(new Event('input', { bubbles: true }));
+            input.focus();
+          } else if (input.isContentEditable) {
+            input.innerText = text;
+            input.dispatchEvent(new Event('input', { bubbles: true }));
+            input.focus();
+          }
+        } else {
+          alert('Could not find the chat textbox.');
+        }
+      };
+      footer.insertBefore(copyBtn, footer.firstChild);
     }
   }
 
@@ -431,8 +491,82 @@ console.log('ChatGPT Snippet Saver content script loaded');
       #${SIDEBAR_ID} .sgpt-snippet-list {
         flex: 1 1 auto; overflow-y: auto; padding: 1em; }
       #${SIDEBAR_ID} .sgpt-snippet-item {
-        background: var(--bg-secondary,#f7f7f8); border-radius: 12px; margin-bottom: 1em; padding: 0.9em 1em; box-shadow: var(--shadow-xs,0 1px 2px rgba(0,0,0,0.03)); display: flex; flex-direction: column; gap: 0.5em;
-        opacity: 0; transform: translateY(16px) scale(0.98); animation: sgpt-fadein 0.38s cubic-bezier(.4,0,.2,1) forwards;
+        position: relative;
+        padding: 1.5em 1.2em 1.2em 1.2em;
+        min-height: 3.5em;
+        cursor: grab;
+        transition: box-shadow 0.18s, background 0.18s;
+        background: var(--bg-secondary,#f7f7f8);
+        border-radius: 12px;
+        margin-bottom: 1em;
+        box-shadow: var(--shadow-xs,0 1px 2px rgba(0,0,0,0.03));
+        display: flex;
+        flex-direction: column;
+        gap: 0.5em;
+        /* Ensure space for X button */
+        box-sizing: border-box;
+      }
+      #${SIDEBAR_ID} .sgpt-x-btn {
+        position: absolute;
+        top: 0.6em;
+        right: 0.6em;
+        width: 28px;
+        height: 28px;
+        background: #fff;
+        border: none;
+        font-size: 1.1em;
+        color: #c00;
+        cursor: pointer;
+        z-index: 2;
+        padding: 0;
+        border-radius: 50%;
+        box-shadow: 0 1px 4px 0 rgba(0,0,0,0.07);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: background 0.18s, color 0.18s, box-shadow 0.18s, transform 0.13s;
+      }
+      #${SIDEBAR_ID} .sgpt-x-btn:hover {
+        background: #ffeaea;
+        color: #a00;
+        box-shadow: 0 2px 8px 0 rgba(220,0,0,0.13);
+        transform: scale(1.13);
+      }
+      #${SIDEBAR_ID} .sgpt-snippet-editable {
+        outline: none;
+        border: none;
+        background: var(--bg-secondary, var(--bg-primary, #222));
+        font-family: inherit;
+        font-size: 1.08em;
+        color: var(--text-primary, #fff);
+        min-height: 2.5em;
+        white-space: pre-wrap;
+        word-break: break-word;
+        padding: 0.2em 0.1em 0.7em 0.1em;
+        border-radius: 8px;
+        transition: background 0.18s;
+      }
+      #${SIDEBAR_ID} .sgpt-snippet-editable:focus {
+        background: var(--bg-secondary, var(--bg-primary, #222));
+        color: var(--text-primary, #fff);
+      }
+      #${SIDEBAR_ID} .sgpt-copy-to-chat-btn {
+        background: var(--bg-primary,#fff);
+        color: var(--text-primary,#222);
+        border: 1px solid var(--border-medium,#e5e5e5);
+        border-radius: 999px;
+        padding: 4px 16px;
+        font-size: 1em;
+        cursor: pointer;
+        font-weight: 500;
+        transition: background 0.18s, color 0.18s, border 0.18s, transform 0.16s;
+        margin-bottom: 0;
+      }
+      #${SIDEBAR_ID} .sgpt-copy-to-chat-btn:hover {
+        background: var(--gray-100,#f3f4f6);
+        color: var(--accent,#10a37f);
+        border-color: var(--accent,#10a37f);
+        transform: scale(1.06);
       }
       @keyframes sgpt-fadein {
         to { opacity: 1; transform: translateY(0) scale(1); }
@@ -529,4 +663,101 @@ console.log('ChatGPT Snippet Saver content script loaded');
   } else {
     setTimeout(main, 500);
   }
+})();
+
+// Add styles for new UI
+(function injectModernSnippetStyles() {
+  if (document.getElementById('sgpt-modern-snippet-style')) return;
+  const style = document.createElement('style');
+  style.id = 'sgpt-modern-snippet-style';
+  style.textContent = `
+    #${SIDEBAR_ID} .sgpt-snippet-item {
+      position: relative;
+      padding: 1.5em 1.2em 1.2em 1.2em;
+      min-height: 3.5em;
+      cursor: grab;
+      transition: box-shadow 0.18s, background 0.18s;
+      background: var(--bg-secondary,#fff);
+      border-radius: 12px;
+      margin-bottom: 1em;
+      box-shadow: none;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5em;
+      box-sizing: border-box;
+    }
+    #${SIDEBAR_ID} .sgpt-snippet-item.dragging {
+      opacity: 0.5;
+      background: var(--gray-100,#f3f4f6);
+      box-shadow: none;
+    }
+    #${SIDEBAR_ID} .sgpt-snippet-item.drag-over {
+      background: var(--gray-100,#f3f4f6);
+      box-shadow: none;
+    }
+    #${SIDEBAR_ID} .sgpt-x-btn {
+      position: absolute;
+      top: 0.6em;
+      right: 0.6em;
+      width: 28px;
+      height: 28px;
+      background: var(--bg-primary,#fff);
+      border: 1px solid var(--border-medium,#e5e5e5);
+      font-size: 1.1em;
+      color: var(--text-primary,#222);
+      cursor: pointer;
+      z-index: 2;
+      padding: 0;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.18s, color 0.18s, border 0.18s, transform 0.13s;
+      box-shadow: none;
+    }
+    #${SIDEBAR_ID} .sgpt-x-btn:hover {
+      background: var(--gray-100,#f3f4f6);
+      color: var(--text-primary,#222);
+      border-color: var(--text-primary,#222);
+      transform: scale(1.13);
+    }
+    #${SIDEBAR_ID} .sgpt-snippet-editable {
+      outline: none;
+      border: none;
+      background: transparent;
+      font-family: inherit;
+      font-size: 1.08em;
+      color: var(--text-primary,#222);
+      min-height: 2.5em;
+      white-space: pre-wrap;
+      word-break: break-word;
+      padding: 0.2em 0.1em 0.7em 0.1em;
+      border-radius: 8px;
+      transition: background 0.18s;
+    }
+    #${SIDEBAR_ID} .sgpt-snippet-editable:focus {
+      background: var(--gray-100,#f3f4f6);
+      color: var(--text-primary,#222);
+    }
+    #${SIDEBAR_ID} .sgpt-copy-to-chat-btn {
+      background: var(--bg-primary,#fff);
+      color: var(--text-primary,#222);
+      border: 1px solid var(--border-medium,#e5e5e5);
+      border-radius: 999px;
+      padding: 4px 16px;
+      font-size: 1em;
+      cursor: pointer;
+      font-weight: 500;
+      transition: background 0.18s, color 0.18s, border 0.18s, transform 0.16s;
+      margin-bottom: 0;
+      box-shadow: none;
+    }
+    #${SIDEBAR_ID} .sgpt-copy-to-chat-btn:hover {
+      background: var(--gray-100,#f3f4f6);
+      color: var(--text-primary,#222);
+      border-color: var(--text-primary,#222);
+      transform: scale(1.06);
+    }
+  `;
+  document.head.appendChild(style);
 })(); 
