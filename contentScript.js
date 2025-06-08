@@ -297,6 +297,31 @@ console.log('ChatGPT Snippet Saver content script loaded');
       item.addEventListener('dragleave', handleDragLeave);
       item.addEventListener('drop', handleDrop);
       item.addEventListener('dragend', handleDragEnd);
+      // Copy to clipboard on click (not on delete or edit)
+      item.addEventListener('click', function(e) {
+        if (e.target === xBtn || e.target === editable) return;
+        navigator.clipboard.writeText(snip.text).then(() => {
+          item.classList.add('sgpt-snippet-copied');
+          // Show a tooltip or highlight
+          let tooltip = document.createElement('div');
+          tooltip.textContent = 'Copied!';
+          tooltip.style.position = 'absolute';
+          tooltip.style.top = '8px';
+          tooltip.style.right = '48px';
+          tooltip.style.background = '#10a37f';
+          tooltip.style.color = '#fff';
+          tooltip.style.padding = '2px 10px';
+          tooltip.style.borderRadius = '8px';
+          tooltip.style.fontSize = '0.98em';
+          tooltip.style.zIndex = '10';
+          tooltip.style.boxShadow = '0 2px 8px rgba(0,0,0,0.10)';
+          item.appendChild(tooltip);
+          setTimeout(() => {
+            item.classList.remove('sgpt-snippet-copied');
+            if (tooltip.parentNode) tooltip.parentNode.removeChild(tooltip);
+          }, 900);
+        });
+      });
       // Layout
       item.appendChild(xBtn);
       item.appendChild(editable);
