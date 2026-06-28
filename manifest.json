@@ -1,13 +1,16 @@
 {
   "manifest_version": 3,
-  "name": "StackGPT - Save Snippets on ChatGPT",
-  "version": "0.1",
-  "description": "Save and manage chat snippets in a sidebar that matches ChatGPT's UI.",
+  "name": "Snippet Saver",
+  "version": "0.2",
+  "description": "Save and manage chat snippets from ChatGPT, Claude, Gemini, Grok and more.",
   "content_scripts": [
     {
       "matches": [
         "https://chat.openai.com/*",
-        "https://chatgpt.com/*"
+        "https://chatgpt.com/*",
+        "https://claude.ai/*",
+        "https://gemini.google.com/*",
+        "https://grok.com/*"
       ],
       "js": ["contentScript.js"],
       "run_at": "document_idle"
@@ -17,4 +20,4 @@
     "48": "icon48.png",
     "128": "icon128.png"
   }
-} 
+}

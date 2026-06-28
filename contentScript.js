@@ -1,9 +1,29 @@
-// ==ChatGPT Snippet Saver Content Script==
-console.log('ChatGPT Snippet Saver content script loaded');
+// ==Snippet Saver Content Script==
+console.log('Snippet Saver content script loaded');
 (function() {
   // --- CONFIG ---
   const SIDEBAR_ID = 'chatgpt-snippet-sidebar';
   const SNIPPET_KEY = 'chatgpt_snippets_v1';
+
+  // --- PLATFORM DETECTION ---
+  function getPlatform() {
+    const host = location.hostname;
+    if (host.includes('chatgpt.com') || host.includes('chat.openai.com')) return 'chatgpt';
+    if (host.includes('claude.ai')) return 'claude';
+    if (host.includes('gemini.google.com')) return 'gemini';
+    if (host.includes('grok.com')) return 'grok';
+    return 'chatgpt';
+  }
+
+  function getPlatformConfig() {
+    const configs = {
+      chatgpt: { label: 'ChatGPT', defaultFavicon: 'https://chatgpt.com/favicon.ico' },
+      claude:  { label: 'Claude',  defaultFavicon: 'https://claude.ai/favicon.ico' },
+      gemini:  { label: 'Gemini',  defaultFavicon: 'https://gemini.google.com/favicon.ico' },
+      grok:    { label: 'Grok',    defaultFavicon: 'https://grok.com/favicon.ico' },
+    };
+    return configs[getPlatform()] || configs.chatgpt;
+  }
 
   // --- UTILITIES ---
   function getTheme() {
@@ -11,10 +31,19 @@ console.log('ChatGPT Snippet Saver content script loaded');
       const root = document.documentElement;
       if (root.classList.contains('dark')) return 'dark';
       if (root.classList.contains('light')) return 'light';
-      const gray800 = getComputedStyle(root).getPropertyValue('--gray-800');
-      return gray800 ? 'dark' : 'light';
+      const attr = root.getAttribute('data-theme');
+      if (attr === 'dark' || attr === 'light') return attr;
+      if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) return 'dark';
+      const bg = getComputedStyle(root).backgroundColor;
+      if (bg) {
+        const rgb = bg.match(/\d+/g);
+        if (rgb && rgb.length >= 3) {
+          const brightness = (parseInt(rgb[0]) * 299 + parseInt(rgb[1]) * 587 + parseInt(rgb[2]) * 114) / 1000;
+          return brightness < 128 ? 'dark' : 'light';
+        }
+      }
+      return 'light';
     } catch (e) {
-      console.error('Theme detection error:', e);
       return 'light';
     }
   }
@@ -22,17 +51,27 @@ console.log('ChatGPT Snippet Saver content script loaded');
   function getCSSVars() {
     try {
       const style = getComputedStyle(document.documentElement);
+      const isDark = getTheme() === 'dark';
+      const defs = isDark
+        ? { bg: '#212121', text: '#ececec', textSecondary: '#999', border: '#424242', shadow: '0 4px 32px rgba(0,0,0,0.5)', radius: '12px', font: 'Inter, sans-serif' }
+        : { bg: '#fff', text: '#222', textSecondary: '#666', border: '#e5e5e5', shadow: '0 4px 32px rgba(0,0,0,0.15)', radius: '12px', font: 'Inter, sans-serif' };
+      const tryVars = (names) => {
+        for (const name of names) {
+          const val = style.getPropertyValue(name);
+          if (val) return val;
+        }
+        return null;
+      };
       return {
-        bg: style.getPropertyValue('--bg-primary') || '#fff',
-        text: style.getPropertyValue('--text-primary') || '#222',
-        textSecondary: style.getPropertyValue('--text-secondary') || '#666',
-        border: style.getPropertyValue('--border-medium') || '#e5e5e5',
-        shadow: style.getPropertyValue('--shadow-lg') || '0 4px 32px rgba(0,0,0,0.15)',
-        radius: style.getPropertyValue('--radius-lg') || '12px',
-        font: style.getPropertyValue('--font-sans') || 'Inter, sans-serif',
+        bg: tryVars(['--bg-primary', '--bg', '--background', '--surface']) || defs.bg,
+        text: tryVars(['--text-primary', '--text', '--text-color', '--on-surface']) || defs.text,
+        textSecondary: tryVars(['--text-secondary', '--text-muted', '--secondary-text']) || defs.textSecondary,
+        border: tryVars(['--border-medium', '--border', '--border-color', '--outline']) || defs.border,
+        shadow: tryVars(['--shadow-lg', '--shadow', '--elevation']) || defs.shadow,
+        radius: tryVars(['--radius-lg', '--radius', '--border-radius']) || defs.radius,
+        font: tryVars(['--font-sans', '--font', '--font-family']) || defs.font,
       };
     } catch (e) {
-      console.error('CSS var detection error:', e);
       return {
         bg: '#fff', text: '#222', textSecondary: '#666', border: '#e5e5e5', shadow: '0 4px 32px rgba(0,0,0,0.15)', radius: '12px', font: 'Inter, sans-serif'
       };
@@ -63,11 +102,12 @@ console.log('ChatGPT Snippet Saver content script loaded');
   function getConversationTitle() {
     try {
       const h1 = document.querySelector('h1');
-      if (h1) return h1.textContent.trim();
-      return document.title.replace(' - ChatGPT', '').trim();
+      if (h1 && h1.textContent.trim()) return h1.textContent.trim();
+      return document.title.replace(/ - (ChatGPT|Claude|Gemini|Grok).*$/, '').trim() || 'Untitled';
     } catch (e) {
-      return 'ChatGPT';
+      return 'Untitled';
     }
+  }
   }
 
   // --- SIDEBAR UI ---
@@ -299,12 +339,13 @@ console.log('ChatGPT Snippet Saver content script loaded');
         }
       };
       // LLM source badge (bottom-left) — uses page favicon
+      const platformCfg = getPlatformConfig();
       const badge = document.createElement('div');
       badge.className = 'sgpt-llm-badge';
-      badge.title = 'Saved from ChatGPT';
-      const favicon = document.querySelector('link[rel="icon"]') || document.querySelector('link[rel="shortcut icon"]');
-      const iconUrl = favicon ? favicon.href : 'https://chatgpt.com/favicon.ico';
-      badge.innerHTML = `<img src="${iconUrl}" width="14" height="14" alt=""> <span>ChatGPT</span>`;
+      badge.title = 'Saved from ' + platformCfg.label;
+      const faviconLink = document.querySelector('link[rel="icon"]') || document.querySelector('link[rel="shortcut icon"]');
+      const iconUrl = faviconLink ? faviconLink.href : platformCfg.defaultFavicon;
+      badge.innerHTML = `<img src="${iconUrl}" width="14" height="14" alt=""> <span>${platformCfg.label}</span>`;
       // Drag events
       item.addEventListener('dragstart', handleDragStart);
       item.addEventListener('dragover', handleDragOver);
@@ -397,7 +438,7 @@ console.log('ChatGPT Snippet Saver content script loaded');
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = 'chatgpt_snippets.txt';
+      a.download = 'snippets_export.txt';
       a.click();
       setTimeout(() => URL.revokeObjectURL(url), 1000);
     } catch (e) {
@@ -481,7 +522,7 @@ console.log('ChatGPT Snippet Saver content script loaded');
           text,
           title: getConversationTitle(),
           date: Date.now(),
-          source: 'chatgpt',
+          source: getPlatform(),
         };
         console.log('Saving snippet:', snippet);
         saveSnippet(snippet);
