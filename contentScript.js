@@ -79,8 +79,13 @@ console.log('ChatGPT Snippet Saver content script loaded');
     sidebar.setAttribute('aria-label', 'Saved Snippets Sidebar');
     sidebar.innerHTML = `
       <div class="sgpt-sidebar-header">
-        <span>Snippets</span>
-        <button class="sgpt-close-btn" title="Close sidebar">&times;</button>
+        <span class="sgpt-sidebar-title">Snippets</span>
+        <button class="sgpt-close-btn" title="Close sidebar">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+            <line x1="18" y1="6" x2="6" y2="18"/>
+            <line x1="6" y1="6" x2="18" y2="18"/>
+          </svg>
+        </button>
       </div>
       <div class="sgpt-snippet-list"></div>
       <div class="sgpt-sidebar-footer">
@@ -196,10 +201,13 @@ console.log('ChatGPT Snippet Saver content script loaded');
       return;
     }
     list.innerHTML = '';
+    const titleEl = sidebar.querySelector('.sgpt-sidebar-title');
     if (!snippets.length) {
-      list.innerHTML = '<div style="color:var(--text-secondary,#888);padding:1em;">No snippets saved yet.</div>';
+      if (titleEl) titleEl.textContent = 'Snippets';
+      list.innerHTML = '<div class="sgpt-empty-state">Select text on the page to save your first snippet</div>';
       return;
     }
+    if (titleEl) titleEl.textContent = 'Snippets (' + snippets.length + ')';
     // Drag-and-drop state
     let dragSrcIdx = null;
     let dropTargetIdx = null;
@@ -263,11 +271,15 @@ console.log('ChatGPT Snippet Saver content script loaded');
       item.className = 'sgpt-snippet-item';
       item.setAttribute('data-idx', idx);
       item.setAttribute('draggable', 'true');
-      // Modern X button for delete
+      // X button for delete (top-right)
       const xBtn = document.createElement('button');
       xBtn.className = 'sgpt-x-btn';
       xBtn.title = 'Delete snippet';
-      xBtn.innerHTML = '&times;';
+      xBtn.innerHTML = `
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+          <line x1="18" y1="6" x2="6" y2="18"/>
+          <line x1="6" y1="6" x2="18" y2="18"/>
+        </svg>`;
       xBtn.onclick = (e) => {
         e.stopPropagation();
         snippets.splice(idx, 1);
@@ -286,6 +298,16 @@ console.log('ChatGPT Snippet Saver content script loaded');
           localStorage.setItem(SNIPPET_KEY, JSON.stringify(snippets));
         }
       };
+      // LLM source badge (bottom-left)
+      const badge = document.createElement('div');
+      badge.className = 'sgpt-llm-badge';
+      badge.title = 'Saved from ChatGPT';
+      badge.innerHTML = `
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z" fill="#10a37f"/>
+          <path d="M12 6c-3.31 0-6 2.69-6 6s2.69 6 6 6 6-2.69 6-6-2.69-6-6-6zm-1 9.5V11l-2.5 1.5L11 14l2.5-1.5L11 11v4.5z" fill="#fff"/>
+        </svg>
+        <span>ChatGPT</span>`;
       // Drag events
       item.addEventListener('dragstart', handleDragStart);
       item.addEventListener('dragover', handleDragOver);
@@ -294,10 +316,9 @@ console.log('ChatGPT Snippet Saver content script loaded');
       item.addEventListener('dragend', handleDragEnd);
       // Copy to clipboard on click (not on delete or edit)
       item.addEventListener('click', function(e) {
-        if (e.target === xBtn || e.target === editable) return;
+        if (e.target === xBtn || e.target === editable || badge.contains(e.target)) return;
         navigator.clipboard.writeText(snip.text).catch(err => console.error('Clipboard write failed:', err)).then(() => {
           item.classList.add('sgpt-snippet-copied');
-          // Show a tooltip or highlight
           let tooltip = document.createElement('div');
           tooltip.textContent = 'Copied!';
           tooltip.style.position = 'absolute';
@@ -307,7 +328,7 @@ console.log('ChatGPT Snippet Saver content script loaded');
           tooltip.style.color = '#fff';
           tooltip.style.padding = '2px 10px';
           tooltip.style.borderRadius = '8px';
-          tooltip.style.fontSize = '0.98em';
+          tooltip.style.fontSize = '0.9em';
           tooltip.style.zIndex = '10';
           tooltip.style.boxShadow = '0 2px 8px rgba(0,0,0,0.10)';
           item.appendChild(tooltip);
@@ -320,6 +341,7 @@ console.log('ChatGPT Snippet Saver content script loaded');
       // Layout
       item.appendChild(xBtn);
       item.appendChild(editable);
+      item.appendChild(badge);
       list.appendChild(item);
     });
     // Add or update the Copy to Chat button in the footer
@@ -462,6 +484,7 @@ console.log('ChatGPT Snippet Saver content script loaded');
           text,
           title: getConversationTitle(),
           date: Date.now(),
+          source: 'chatgpt',
         };
         console.log('Saving snippet:', snippet);
         saveSnippet(snippet);
@@ -498,44 +521,64 @@ console.log('ChatGPT Snippet Saver content script loaded');
         transition: transform 0.32s cubic-bezier(.4,0,.2,1), box-shadow 0.18s;
       }
       #${SIDEBAR_ID}.sgpt-sidebar-visible {
-        box-shadow: 0 8px 32px rgba(0,0,0,0.18);
+        box-shadow: -4px 0 24px rgba(0,0,0,0.10);
       }
+
+      /* --- Header --- */
       #${SIDEBAR_ID} .sgpt-sidebar-header {
         display: flex; align-items: center; justify-content: space-between;
-        padding: 1em; font-weight: 600; border-bottom: 1px solid var(--border-medium,#e5e5e5);
+        padding: 0.75em 1em; font-weight: 600; font-size: 1.05em;
+        border-bottom: 1px solid var(--border-medium,#e5e5e5);
+        flex-shrink: 0;
       }
       #${SIDEBAR_ID} .sgpt-close-btn {
-        background: none; border: none; font-size: 1.5em; cursor: pointer; color: var(--text-secondary,#888);}
+        background: none; border: none; width: 32px; height: 32px;
+        cursor: pointer; color: var(--text-secondary,#888);
+        border-radius: 8px; display: flex; align-items: center; justify-content: center;
+        font-size: 1.3em; transition: background 0.15s;
+      }
+      #${SIDEBAR_ID} .sgpt-close-btn:hover {
+        background: var(--gray-100,#f3f4f6); color: var(--text-primary,#222);
+      }
+
+      /* --- Snippet List --- */
       #${SIDEBAR_ID} .sgpt-snippet-list {
-        flex: 1 1 auto; overflow-y: auto; padding: 1em; }
+        flex: 1 1 auto; overflow-y: auto; padding: 0.75em;
+        display: flex; flex-direction: column; gap: 0;
+      }
+
+      /* --- Snippet Item --- */
       #${SIDEBAR_ID} .sgpt-snippet-item {
         position: relative;
-        padding: 1.5em 1.2em 1.2em 1.2em;
-        min-height: 3.5em;
+        padding: 1em 1em 2.4em 1em;
         cursor: grab;
         transition: box-shadow 0.18s, background 0.18s, transform 0.18s;
         background: var(--bg-secondary,#fff);
-        border-radius: 12px;
-        margin-bottom: 1em;
-        box-shadow: none;
+        border-radius: 10px;
+        margin-bottom: 0.6em;
+        border: 1px solid var(--border-medium,#e5e5e5);
         display: flex;
         flex-direction: column;
-        gap: 0.5em;
         box-sizing: border-box;
         z-index: 1;
+      }
+      #${SIDEBAR_ID} .sgpt-snippet-item:hover {
+        border-color: var(--text-secondary,#888);
       }
       #${SIDEBAR_ID} .sgpt-snippet-item.dragging {
         opacity: 0.85;
         background: var(--bg-primary,#fff);
-        box-shadow: 0 4px 24px 0 rgba(0,0,0,0.10);
+        box-shadow: 0 4px 24px rgba(0,0,0,0.10);
         transform: scale(1.03);
         cursor: grabbing;
         z-index: 2;
       }
+
+      /* --- Drop Indicator --- */
       #${SIDEBAR_ID} .sgpt-drop-indicator {
         height: 0;
         border-top: 2.5px solid var(--text-primary,#222);
-        margin: -0.5em 0 0.5em 0;
+        margin: -0.3em 0 0.3em 0;
         border-radius: 2px;
         transition: border-color 0.18s, margin 0.18s;
         animation: sgpt-drop-indicator-fadein 0.18s;
@@ -544,79 +587,106 @@ console.log('ChatGPT Snippet Saver content script loaded');
         from { opacity: 0; }
         to { opacity: 1; }
       }
+
+      /* --- X Delete Button --- */
       #${SIDEBAR_ID} .sgpt-x-btn {
         position: absolute;
-        top: 0.6em;
-        right: 0.6em;
-        width: 28px;
-        height: 28px;
-        background: var(--bg-primary,#fff);
-        border: 1px solid var(--border-medium,#e5e5e5);
-        font-size: 1.1em;
-        color: var(--text-primary,#222);
+        top: 0.5em;
+        right: 0.5em;
+        width: 26px;
+        height: 26px;
+        background: transparent;
+        border: none;
+        color: var(--text-secondary,#888);
         cursor: pointer;
         z-index: 2;
         padding: 0;
-        border-radius: 50%;
-        box-shadow: none;
+        border-radius: 8px;
         display: flex;
         align-items: center;
         justify-content: center;
-        transition: background 0.18s, color 0.18s, border 0.18s, transform 0.13s;
+        transition: background 0.15s, color 0.15s;
       }
       #${SIDEBAR_ID} .sgpt-x-btn:hover {
         background: var(--gray-100,#f3f4f6);
         color: var(--text-primary,#222);
-        border-color: var(--text-primary,#222);
-        transform: scale(1.13);
       }
+
+      /* --- Editable Text --- */
       #${SIDEBAR_ID} .sgpt-snippet-editable {
         outline: none;
         border: none;
         background: transparent;
         font-family: inherit;
-        font-size: 1.08em;
+        font-size: 0.95em;
+        line-height: 1.5;
         color: var(--text-primary,#222);
-        min-height: 2.5em;
         white-space: pre-wrap;
         word-break: break-word;
-        padding: 0.2em 0.1em 0.7em 0.1em;
-        border-radius: 8px;
-        transition: background 0.18s;
+        padding: 0.2em 0;
+        border-radius: 6px;
+        transition: background 0.15s;
       }
       #${SIDEBAR_ID} .sgpt-snippet-editable:focus {
         background: var(--gray-100,#f3f4f6);
-        color: var(--text-primary,#222);
+        padding: 0.2em 0.4em;
+        margin: 0 -0.4em;
       }
+
+      /* --- LLM Badge --- */
+      #${SIDEBAR_ID} .sgpt-llm-badge {
+        position: absolute;
+        bottom: 0.4em;
+        left: 0.8em;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        font-size: 0.75em;
+        color: var(--text-secondary,#888);
+        pointer-events: none;
+      }
+      #${SIDEBAR_ID} .sgpt-llm-badge span {
+        line-height: 1;
+      }
+
+      /* --- Footer Buttons --- */
       #${SIDEBAR_ID} .sgpt-copy-to-chat-btn,
       #${SIDEBAR_ID} .sgpt-export-btn {
-        background: var(--bg-primary,#fff);
+        background: transparent;
         color: var(--text-primary,#222);
         border: 1px solid var(--border-medium,#e5e5e5);
-        border-radius: 999px;
-        padding: 4px 16px;
-        font-size: 1em;
+        border-radius: 8px;
+        padding: 6px 14px;
+        font-size: 0.9em;
         cursor: pointer;
         font-weight: 500;
-        transition: background 0.18s, color 0.18s, border 0.18s, transform 0.16s;
-        margin-bottom: 0;
-        box-shadow: none;
+        transition: background 0.15s, border-color 0.15s;
       }
       #${SIDEBAR_ID} .sgpt-copy-to-chat-btn:hover,
       #${SIDEBAR_ID} .sgpt-export-btn:hover {
         background: var(--gray-100,#f3f4f6);
-        color: var(--text-primary,#222);
         border-color: var(--text-primary,#222);
-        transform: scale(1.06);
       }
-      #${SIDEBAR_ID} .sgpt-snippet-meta {
-        font-size: 0.97em; color: var(--text-secondary,#888); margin-bottom: 0.2em; display: flex; align-items: center; gap: 0.5em; justify-content: space-between;}
-      #${SIDEBAR_ID} .sgpt-snippet-title { font-weight: 500; }
-      #${SIDEBAR_ID} .sgpt-snippet-date { font-style: italic; font-size: 0.93em; }
-      #${SIDEBAR_ID} .sgpt-snippet-text { font-family: inherit; font-size: 1.04em; margin: 0.2em 0 0.2em 0; white-space: pre-wrap; word-break: break-word; color: var(--text-primary,#222); }
-      #${SIDEBAR_ID} .sgpt-snippet-actions { display: flex; gap: 0.5em; justify-content: flex-end; align-items: center; }
+
+      /* --- Empty State --- */
+      #${SIDEBAR_ID} .sgpt-empty-state {
+        color: var(--text-secondary,#888);
+        padding: 2em 1em;
+        text-align: center;
+        font-size: 0.9em;
+        line-height: 1.5;
+      }
+
+      /* --- Footer --- */
       #${SIDEBAR_ID} .sgpt-sidebar-footer {
-        padding: 0.75em 1em; border-top: 1px solid var(--border-medium,#e5e5e5); text-align: right; display: flex; gap: 0.5em; justify-content: flex-end; align-items: center;}
+        padding: 0.6em 0.75em;
+        border-top: 1px solid var(--border-medium,#e5e5e5);
+        display: flex;
+        gap: 0.4em;
+        justify-content: flex-end;
+        align-items: center;
+        flex-shrink: 0;
+      }
     `;
     document.head.appendChild(style);
   }
