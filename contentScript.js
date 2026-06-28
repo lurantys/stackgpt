@@ -298,16 +298,13 @@ console.log('ChatGPT Snippet Saver content script loaded');
           localStorage.setItem(SNIPPET_KEY, JSON.stringify(snippets));
         }
       };
-      // LLM source badge (bottom-left)
+      // LLM source badge (bottom-left) — uses page favicon
       const badge = document.createElement('div');
       badge.className = 'sgpt-llm-badge';
       badge.title = 'Saved from ChatGPT';
-      badge.innerHTML = `
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z" fill="#10a37f"/>
-          <path d="M12 6c-3.31 0-6 2.69-6 6s2.69 6 6 6 6-2.69 6-6-2.69-6-6-6zm-1 9.5V11l-2.5 1.5L11 14l2.5-1.5L11 11v4.5z" fill="#fff"/>
-        </svg>
-        <span>ChatGPT</span>`;
+      const favicon = document.querySelector('link[rel="icon"]') || document.querySelector('link[rel="shortcut icon"]');
+      const iconUrl = favicon ? favicon.href : 'https://chatgpt.com/favicon.ico';
+      badge.innerHTML = `<img src="${iconUrl}" width="14" height="14" alt=""> <span>ChatGPT</span>`;
       // Drag events
       item.addEventListener('dragstart', handleDragStart);
       item.addEventListener('dragover', handleDragOver);
@@ -608,8 +605,8 @@ console.log('ChatGPT Snippet Saver content script loaded');
         transition: background 0.15s, color 0.15s;
       }
       #${SIDEBAR_ID} .sgpt-x-btn:hover {
-        background: var(--gray-100,#f3f4f6);
-        color: var(--text-primary,#222);
+        background: #fef2f2;
+        color: #dc2626;
       }
 
       /* --- Editable Text --- */
@@ -644,6 +641,9 @@ console.log('ChatGPT Snippet Saver content script loaded');
         font-size: 0.75em;
         color: var(--text-secondary,#888);
         pointer-events: none;
+      }
+      #${SIDEBAR_ID} .sgpt-llm-badge img {
+        border-radius: 3px;
       }
       #${SIDEBAR_ID} .sgpt-llm-badge span {
         line-height: 1;
