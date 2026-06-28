@@ -660,12 +660,13 @@ console.log('ChatGPT Snippet Saver content script loaded');
         font-size: 0.9em;
         cursor: pointer;
         font-weight: 500;
-        transition: background 0.15s, border-color 0.15s;
+        transition: background 0.15s, color 0.15s, border-color 0.15s;
       }
       #${SIDEBAR_ID} .sgpt-copy-to-chat-btn:hover,
       #${SIDEBAR_ID} .sgpt-export-btn:hover {
-        background: var(--gray-100,#f3f4f6);
+        background: rgba(128,128,128,0.12);
         border-color: var(--text-primary,#222);
+        color: var(--text-primary,#222);
       }
 
       /* --- Empty State --- */
