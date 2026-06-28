@@ -441,13 +441,13 @@ console.log('ChatGPT Snippet Saver content script loaded');
       const range = sel.getRangeAt(0);
       const rect = range.getBoundingClientRect();
       const gap = 8;
-      let left = window.scrollX + rect.right + gap;
-      if (left + saveBtn.offsetWidth > window.innerWidth + window.scrollX - gap) {
-        left = window.scrollX + rect.left - saveBtn.offsetWidth - gap;
+      let top = window.scrollY + rect.bottom + gap;
+      if (top + saveBtn.offsetHeight > window.innerHeight + window.scrollY - gap) {
+        top = window.scrollY + rect.top - saveBtn.offsetHeight - gap;
       }
       saveBtn.style.visibility = 'visible';
-      saveBtn.style.top = `${window.scrollY + rect.top + rect.height/2 - saveBtn.offsetHeight/2}px`;
-      saveBtn.style.left = `${left}px`;
+      saveBtn.style.top = `${top}px`;
+      saveBtn.style.left = `${window.scrollX + rect.left + rect.width/2 - saveBtn.offsetWidth/2}px`;
 
       // Use addEventListener for reliability
       saveBtn.addEventListener('mousedown', (e) => {
