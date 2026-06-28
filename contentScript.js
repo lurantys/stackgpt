@@ -108,7 +108,6 @@ console.log('Snippet Saver content script loaded');
       return 'Untitled';
     }
   }
-  }
 
   // --- SIDEBAR UI ---
   function createSidebar() {
