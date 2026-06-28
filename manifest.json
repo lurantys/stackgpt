@@ -1,8 +1,9 @@
 {
   "manifest_version": 3,
-  "name": "Snippet Saver",
+  "name": "StackGPT",
   "version": "0.2",
   "description": "Save and manage chat snippets from ChatGPT, Claude, Gemini, Grok and more.",
+  "permissions": ["storage"],
   "content_scripts": [
     {
       "matches": [
@@ -17,7 +18,7 @@
     }
   ],
   "icons": {
-    "48": "icon48.png",
-    "128": "icon128.png"
+    "48": "icon.png",
+    "128": "icon.png"
   }
 }

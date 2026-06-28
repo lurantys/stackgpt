@@ -15,24 +15,26 @@ console.log('Snippet Saver content script loaded');
     return 'chatgpt';
   }
 
-  function getPlatformConfig() {
+  function getPlatformConfig(platform) {
     const configs = {
       chatgpt: { label: 'ChatGPT', defaultFavicon: 'https://chatgpt.com/favicon.ico' },
       claude:  { label: 'Claude',  defaultFavicon: 'https://claude.ai/favicon.ico' },
-      gemini:  { label: 'Gemini',  defaultFavicon: 'https://gemini.google.com/favicon.ico' },
-      grok:    { label: 'Grok',    defaultFavicon: 'https://grok.com/favicon.ico' },
+      gemini:  { label: 'Gemini',  defaultFavicon: 'https://www.gstatic.com/lamda/images/gemini_sparkle_aurora_33f86dc0c0257da337c63.svg' },
+      grok:    { label: 'Grok',    defaultFavicon: 'https://grok.com/images/favicon.ico' },
     };
-    return configs[getPlatform()] || configs.chatgpt;
+    return configs[platform || getPlatform()] || configs.chatgpt;
   }
 
   // --- UTILITIES ---
   function getTheme() {
     try {
       const root = document.documentElement;
-      if (root.classList.contains('dark')) return 'dark';
-      if (root.classList.contains('light')) return 'light';
+      if (root.classList.contains('dark') || root.classList.contains('dark-theme')) return 'dark';
+      if (root.classList.contains('light') || root.classList.contains('light-theme')) return 'light';
       const attr = root.getAttribute('data-theme');
       if (attr === 'dark' || attr === 'light') return attr;
+      if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) return 'dark';
+      if (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) return 'light';
       const candidates = [document.body, root];
       for (const el of candidates) {
         const bg = getComputedStyle(el).backgroundColor;
@@ -50,66 +52,58 @@ console.log('Snippet Saver content script loaded');
     }
   }
 
-  function readCSSVar(name, fallback) {
-    try {
-      const val = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
-      if (!val || val.startsWith('var(')) return fallback;
-      return val;
-    } catch (e) {
-      return fallback;
-    }
-  }
-
   function getCSSVars() {
+    const isDark = getTheme() === 'dark';
+    return isDark
+      ? { bg: '#212121', text: '#ececec', textSecondary: '#999', border: '#424242', shadow: '0 4px 32px rgba(0,0,0,0.5)', radius: '12px', font: 'Inter, sans-serif', cardBg: '#2f2f2f', hoverBg: '#3a3a3a' }
+      : { bg: '#fff', text: '#222', textSecondary: '#666', border: '#e5e5e5', shadow: '0 4px 32px rgba(0,0,0,0.15)', radius: '12px', font: 'Inter, sans-serif', cardBg: '#f5f5f5', hoverBg: '#ebebeb' };
+  }
+
+  function saveSnippet(snippet, cb) {
+    chrome.storage.local.get(SNIPPET_KEY, (result) => {
+      try {
+        const snippets = result[SNIPPET_KEY] || [];
+        snippets.push(snippet);
+        chrome.storage.local.set({ [SNIPPET_KEY]: snippets }, cb || (() => {}));
+      } catch (e) {
+        console.error('Save snippet error:', e);
+        showSidebarError('Failed to save snippet.');
+        if (cb) cb();
+      }
+    });
+  }
+
+  function loadSnippets(callback) {
+    chrome.storage.local.get(SNIPPET_KEY, (result) => {
+      try {
+        callback(result[SNIPPET_KEY] || []);
+      } catch (e) {
+        console.error('Load snippet error:', e);
+        showSidebarError('Failed to load snippets.');
+        callback([]);
+      }
+    });
+  }
+
+  function saveAll(snippets, cb) {
+    chrome.storage.local.set({ [SNIPPET_KEY]: snippets }, cb || (() => {}));
+  }
+
+  function migrateFromLocalStorage() {
     try {
-      const isDark = getTheme() === 'dark';
-      const defs = isDark
-        ? { bg: '#212121', text: '#ececec', textSecondary: '#999', border: '#424242', shadow: '0 4px 32px rgba(0,0,0,0.5)', radius: '12px', font: 'Inter, sans-serif', cardBg: '#2f2f2f', hoverBg: '#3a3a3a' }
-        : { bg: '#fff', text: '#222', textSecondary: '#666', border: '#e5e5e5', shadow: '0 4px 32px rgba(0,0,0,0.15)', radius: '12px', font: 'Inter, sans-serif', cardBg: '#f5f5f5', hoverBg: '#ebebeb' };
-      const tryVars = (names, d) => {
-        for (const n of names) {
-          const v = readCSSVar(n);
-          if (v) return v;
+      const data = localStorage.getItem(SNIPPET_KEY);
+      if (data) {
+        const parsed = JSON.parse(data);
+        if (parsed.length > 0) {
+          chrome.storage.local.get(SNIPPET_KEY, (result) => {
+            if (!result[SNIPPET_KEY] || result[SNIPPET_KEY].length === 0) {
+              chrome.storage.local.set({ [SNIPPET_KEY]: parsed });
+            }
+            localStorage.removeItem(SNIPPET_KEY);
+          });
         }
-        return d;
-      };
-      return {
-        bg: tryVars(['--bg-primary', '--bg', '--background', '--surface'], defs.bg),
-        text: tryVars(['--text-primary', '--text', '--text-color', '--on-surface'], defs.text),
-        textSecondary: tryVars(['--text-secondary', '--text-muted', '--secondary-text'], defs.textSecondary),
-        border: tryVars(['--border-medium', '--border', '--border-color', '--outline'], defs.border),
-        shadow: tryVars(['--shadow-lg', '--shadow', '--elevation'], defs.shadow),
-        radius: tryVars(['--radius-lg', '--radius', '--border-radius'], defs.radius),
-        font: tryVars(['--font-sans', '--font', '--font-family'], defs.font),
-        cardBg: defs.cardBg,
-        hoverBg: defs.hoverBg,
-      };
-    } catch (e) {
-      return {
-        bg: '#fff', text: '#222', textSecondary: '#666', border: '#e5e5e5', shadow: '0 4px 32px rgba(0,0,0,0.15)', radius: '12px', font: 'Inter, sans-serif', cardBg: '#f5f5f5', hoverBg: '#ebebeb'
-      };
-    }
-  }
-
-  function saveSnippet(snippet) {
-    try {
-      const snippets = JSON.parse(localStorage.getItem(SNIPPET_KEY) || '[]');
-      snippets.push(snippet);
-      localStorage.setItem(SNIPPET_KEY, JSON.stringify(snippets));
-    } catch (e) {
-      console.error('Save snippet error:', e);
-      showSidebarError('Failed to save snippet. localStorage may be blocked.');
-    }
-  }
-
-  function loadSnippets() {
-    try {
-      return JSON.parse(localStorage.getItem(SNIPPET_KEY) || '[]');
-    } catch (e) {
-      console.error('Load snippet error:', e);
-      showSidebarError('Failed to load snippets. localStorage may be blocked.');
-      return [];
-    }
+      }
+    } catch (e) {}
   }
 
   function getConversationTitle() {
@@ -162,11 +156,13 @@ console.log('Snippet Saver content script loaded');
       flexDirection: 'column',
       transition: 'transform 0.2s',
     });
-    sidebar.style.setProperty('--sgpt-text', cssVars.text);
-    sidebar.style.setProperty('--sgpt-text-secondary', cssVars.textSecondary);
-    sidebar.style.setProperty('--sgpt-border', cssVars.border);
-    sidebar.style.setProperty('--sgpt-card-bg', cssVars.cardBg);
-    sidebar.style.setProperty('--sgpt-hover', cssVars.hoverBg);
+    const root = document.documentElement;
+    root.style.setProperty('--sgpt-bg', cssVars.bg);
+    root.style.setProperty('--sgpt-text', cssVars.text);
+    root.style.setProperty('--sgpt-text-secondary', cssVars.textSecondary);
+    root.style.setProperty('--sgpt-border', cssVars.border);
+    root.style.setProperty('--sgpt-card-bg', cssVars.cardBg);
+    root.style.setProperty('--sgpt-hover', cssVars.hoverBg);
     sidebar.style.transform = 'translateX(100%)';
     document.body.appendChild(sidebar);
     sidebar.querySelector('.sgpt-close-btn').onclick = () => toggleSidebar(false);
@@ -203,20 +199,20 @@ console.log('Snippet Saver content script loaded');
     btn.id = 'sgpt-sidebar-tab-btn';
     btn.setAttribute('aria-label', 'Show saved snippets');
     btn.title = 'Show saved snippets';
-    btn.innerHTML = `<svg width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="6" y="4" width="12" height="16" rx="3" fill="var(--bg-primary,#fff)" stroke="var(--text-primary,#222)" stroke-width="2"/><path d="M9 8h6M9 12h6M9 16h3" stroke="var(--text-primary,#222)" stroke-width="1.5" stroke-linecap="round"/></svg>`;
+    btn.innerHTML = `<svg width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="6" y="4" width="12" height="16" rx="3" fill="var(--sgpt-bg)" stroke="var(--sgpt-text)" stroke-width="2"/><path d="M9 8h6M9 12h6M9 16h3" stroke="var(--sgpt-text)" stroke-width="1.5" stroke-linecap="round"/></svg>`;
     Object.assign(btn.style, {
       position: 'fixed',
       top: '50%',
       right: '0',
       transform: 'translateY(-50%)',
       zIndex: 10000,
-      background: 'var(--bg-primary, #fff)',
-      color: 'var(--text-primary, #222)',
-      border: '1.5px solid var(--border-medium, #e5e5e5)',
+      background: 'var(--sgpt-bg)',
+      color: 'var(--sgpt-text)',
+      border: '1.5px solid var(--sgpt-border)',
       borderRadius: '16px 0 0 16px',
       width: '44px',
       height: '64px',
-      boxShadow: 'var(--shadow-lg, 0 4px 32px rgba(0,0,0,0.15))',
+      boxShadow: '0 4px 32px rgba(0,0,0,0.15)',
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
@@ -225,8 +221,8 @@ console.log('Snippet Saver content script loaded');
       outline: 'none',
       transition: 'background 0.2s',
     });
-    btn.onmouseenter = () => { btn.style.background = 'var(--gray-100,#f3f4f6)'; };
-    btn.onmouseleave = () => { btn.style.background = 'var(--bg-primary,#fff)'; };
+    btn.onmouseenter = () => { btn.style.background = 'var(--sgpt-hover)'; };
+    btn.onmouseleave = () => { btn.style.background = 'var(--sgpt-bg)'; };
     btn.onclick = () => toggleSidebar();
     document.body.appendChild(btn);
   }
@@ -250,217 +246,227 @@ console.log('Snippet Saver content script loaded');
       sidebar = document.getElementById(SIDEBAR_ID);
     }
     const list = sidebar.querySelector('.sgpt-snippet-list');
-    let snippets;
-    try {
-      snippets = loadSnippets();
-    } catch (e) {
-      showSidebarError('Failed to load snippets. localStorage may be blocked.');
-      return;
-    }
-    list.innerHTML = '';
-    const titleEl = sidebar.querySelector('.sgpt-sidebar-title');
-    if (!snippets.length) {
-      if (titleEl) titleEl.textContent = 'Snippets';
-      list.innerHTML = '<div class="sgpt-empty-state">Select text on the page to save your first snippet</div>';
-      return;
-    }
-    if (titleEl) titleEl.textContent = 'Snippets (' + snippets.length + ')';
-    // Drag-and-drop state
-    let dragSrcIdx = null;
-    let dropTargetIdx = null;
-    let dropIndicator = null;
-    function handleDragStart(e) {
-      dragSrcIdx = +e.currentTarget.getAttribute('data-idx');
-      e.dataTransfer.effectAllowed = 'move';
-      e.dataTransfer.setData('text/plain', dragSrcIdx);
-      e.currentTarget.classList.add('dragging');
-      document.body.style.cursor = 'grabbing';
-    }
-    function handleDragOver(e) {
-      e.preventDefault();
-      e.dataTransfer.dropEffect = 'move';
-      const overIdx = +e.currentTarget.getAttribute('data-idx');
-      if (dropTargetIdx !== overIdx) {
-        dropTargetIdx = overIdx;
-        showDropIndicator(overIdx, e.currentTarget);
+    loadSnippets((snippets) => {
+      list.innerHTML = '';
+      const titleEl = sidebar.querySelector('.sgpt-sidebar-title');
+      if (!snippets.length) {
+        if (titleEl) titleEl.textContent = 'Snippets';
+        list.innerHTML = '<div class="sgpt-empty-state">Select text on the page to save your first snippet</div>';
+        let copyBtn = sidebar.querySelector('.sgpt-copy-to-chat-btn');
+        if (copyBtn) copyBtn.remove();
+        return;
       }
-    }
-    function handleDragLeave(e) {
-      e.currentTarget.classList.remove('drag-over');
-      hideDropIndicator();
-    }
-    function handleDrop(e) {
-      e.preventDefault();
-      const fromIdx = dragSrcIdx;
-      const toIdx = dropTargetIdx;
-      hideDropIndicator();
-      document.body.style.cursor = '';
-      if (fromIdx === toIdx) return;
-      // Reorder
-      const moved = snippets.splice(fromIdx, 1)[0];
-      snippets.splice(toIdx, 0, moved);
-      localStorage.setItem(SNIPPET_KEY, JSON.stringify(snippets));
-      renderSnippets();
-    }
-    function handleDragEnd(e) {
-      document.querySelectorAll('.sgpt-snippet-item').forEach(item => {
-        item.classList.remove('dragging', 'drag-over');
-      });
-      hideDropIndicator();
-      document.body.style.cursor = '';
-    }
-    function showDropIndicator(idx, targetElem) {
-      hideDropIndicator();
-      dropIndicator = document.createElement('div');
-      dropIndicator.className = 'sgpt-drop-indicator';
-      targetElem.parentNode.insertBefore(dropIndicator, targetElem);
-    }
-    function hideDropIndicator() {
-      if (dropIndicator && dropIndicator.parentNode) {
-        dropIndicator.parentNode.removeChild(dropIndicator);
+      if (titleEl) titleEl.textContent = 'Snippets (' + snippets.length + ')';
+      let dragSrcEl = null;
+      let dragSrcIdx = null;
+      let dropIndicator = null;
+      let dragScrollInterval = null;
+
+      function initDragScroll(dir) {
+        stopDragScroll();
+        dragScrollInterval = setInterval(() => { list.scrollTop += dir * 6; }, 16);
       }
-      dropIndicator = null;
-      dropTargetIdx = null;
-    }
-    // Render each snippet
-    snippets.forEach((snip, idx) => {
-      const item = document.createElement('div');
-      item.className = 'sgpt-snippet-item';
-      item.setAttribute('data-idx', idx);
-      item.setAttribute('draggable', 'true');
-      // X button for delete (top-right)
-      const xBtn = document.createElement('button');
-      xBtn.className = 'sgpt-x-btn';
-      xBtn.title = 'Delete snippet';
-      xBtn.innerHTML = `
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
-          <line x1="18" y1="6" x2="6" y2="18"/>
-          <line x1="6" y1="6" x2="18" y2="18"/>
-        </svg>`;
-      xBtn.onclick = (e) => {
-        e.stopPropagation();
-        snippets.splice(idx, 1);
-        localStorage.setItem(SNIPPET_KEY, JSON.stringify(snippets));
-        renderSnippets();
-      };
-      // Editable snippet text
-      const editable = document.createElement('div');
-      editable.className = 'sgpt-snippet-editable';
-      editable.contentEditable = 'true';
-      editable.spellcheck = true;
-      editable.innerText = snip.text;
-      editable.onblur = () => {
-        if (editable.innerText !== snip.text) {
-          snippets[idx].text = editable.innerText;
-          localStorage.setItem(SNIPPET_KEY, JSON.stringify(snippets));
+      function stopDragScroll() {
+        if (dragScrollInterval) { clearInterval(dragScrollInterval); dragScrollInterval = null; }
+      }
+
+      function findDropTarget(y) {
+        const items = list.querySelectorAll('.sgpt-snippet-item:not(.dragging)');
+        let best = null;
+        for (const item of items) {
+          const r = item.getBoundingClientRect();
+          if (y < r.top + r.height / 2) return { el: item, after: false };
+          best = { el: item, after: true };
         }
-      };
-      // LLM source badge (bottom-left) — uses page favicon
-      const platformCfg = getPlatformConfig();
-      const badge = document.createElement('div');
-      badge.className = 'sgpt-llm-badge';
-      badge.title = 'Saved from ' + platformCfg.label;
-      const faviconLink = document.querySelector('link[rel="icon"]') || document.querySelector('link[rel="shortcut icon"]');
-      const iconUrl = faviconLink ? faviconLink.href : platformCfg.defaultFavicon;
-      badge.innerHTML = `<img src="${iconUrl}" width="14" height="14" alt=""> <span>${platformCfg.label}</span>`;
-      // Drag events
-      item.addEventListener('dragstart', handleDragStart);
-      item.addEventListener('dragover', handleDragOver);
-      item.addEventListener('dragleave', handleDragLeave);
-      item.addEventListener('drop', handleDrop);
-      item.addEventListener('dragend', handleDragEnd);
-      // Copy to clipboard on click (not on delete or edit)
-      item.addEventListener('click', function(e) {
-        if (e.target === xBtn || e.target === editable || badge.contains(e.target)) return;
-        navigator.clipboard.writeText(snip.text).catch(err => console.error('Clipboard write failed:', err)).then(() => {
-          item.classList.add('sgpt-snippet-copied');
-          let tooltip = document.createElement('div');
-          tooltip.textContent = 'Copied!';
-          tooltip.style.position = 'absolute';
-          tooltip.style.top = '8px';
-          tooltip.style.right = '48px';
-          tooltip.style.background = '#10a37f';
-          tooltip.style.color = '#fff';
-          tooltip.style.padding = '2px 10px';
-          tooltip.style.borderRadius = '8px';
-          tooltip.style.fontSize = '0.9em';
-          tooltip.style.zIndex = '10';
-          tooltip.style.boxShadow = '0 2px 8px rgba(0,0,0,0.10)';
-          item.appendChild(tooltip);
-          setTimeout(() => {
-            item.classList.remove('sgpt-snippet-copied');
-            if (tooltip.parentNode) tooltip.parentNode.removeChild(tooltip);
-          }, 900);
+        return best;
+      }
+
+      function placeIndicator(y) {
+        const target = findDropTarget(y);
+        if (!target) { hideIndicator(); return; }
+        if (!dropIndicator) {
+          dropIndicator = document.createElement('div');
+          dropIndicator.className = 'sgpt-drop-indicator';
+        }
+        if (dropIndicator.parentNode) dropIndicator.parentNode.removeChild(dropIndicator);
+        target.el.parentNode.insertBefore(dropIndicator, target.after ? target.el.nextSibling : target.el);
+      }
+      function hideIndicator() {
+        if (dropIndicator && dropIndicator.parentNode) dropIndicator.parentNode.removeChild(dropIndicator);
+      }
+
+      function handleDragStart(e) {
+        dragSrcEl = e.currentTarget;
+        dragSrcIdx = +e.currentTarget.getAttribute('data-idx');
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/plain', dragSrcIdx);
+        dragSrcEl.classList.add('dragging');
+      }
+
+      function handleDragOver(e) {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        placeIndicator(e.clientY);
+
+        const r = list.getBoundingClientRect();
+        if (e.clientY < r.top + 30) initDragScroll(-1);
+        else if (e.clientY > r.bottom - 30) initDragScroll(1);
+        else stopDragScroll();
+      }
+
+      function handleDrop(e) {
+        e.preventDefault();
+        stopDragScroll();
+        if (!dropIndicator || !dropIndicator.parentNode) return;
+        const parent = dropIndicator.parentNode;
+        const refNode = dropIndicator.nextSibling;
+        const toIdx = [...parent.children].indexOf(dropIndicator);
+        hideIndicator();
+        if (dragSrcIdx === toIdx || dragSrcIdx === toIdx - 1) return;
+        const moved = snippets.splice(dragSrcIdx, 1)[0];
+        snippets.splice(toIdx > dragSrcIdx ? toIdx - 1 : toIdx, 0, moved);
+        const movedNode = dragSrcEl;
+        movedNode.parentNode.removeChild(movedNode);
+        parent.insertBefore(movedNode, refNode);
+        [...parent.children].forEach((el, i) => el.setAttribute('data-idx', i));
+        dragSrcEl = null;
+        dragSrcIdx = null;
+        saveAll(snippets);
+      }
+
+      function handleDragEnd(e) {
+        stopDragScroll();
+        document.querySelectorAll('.sgpt-snippet-item').forEach(el => el.classList.remove('dragging', 'drag-over'));
+        hideIndicator();
+        dragSrcEl = null;
+      }
+
+      function handleDragLeave(e) {
+        if (!list.contains(e.relatedTarget)) hideIndicator();
+      }
+
+      if (!list._dragReady) {
+        list.addEventListener('dragover', handleDragOver);
+        list.addEventListener('drop', handleDrop);
+        list.addEventListener('dragleave', handleDragLeave);
+        list._dragReady = true;
+      }
+      snippets.forEach((snip, idx) => {
+        const item = document.createElement('div');
+        item.className = 'sgpt-snippet-item';
+        item.setAttribute('data-idx', idx);
+        item.setAttribute('draggable', 'true');
+        const xBtn = document.createElement('button');
+        xBtn.className = 'sgpt-x-btn';
+        xBtn.title = 'Delete snippet';
+        xBtn.innerHTML = `
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+            <line x1="18" y1="6" x2="6" y2="18"/>
+            <line x1="6" y1="6" x2="18" y2="18"/>
+          </svg>`;
+        xBtn.onclick = (e) => {
+          e.stopPropagation();
+          const i = +e.currentTarget.parentNode.getAttribute('data-idx');
+          snippets.splice(i, 1);
+          saveAll(snippets, renderSnippets);
+        };
+        const textDiv = document.createElement('div');
+        textDiv.className = 'sgpt-snippet-text';
+        textDiv.innerText = snip.text;
+        const srcCfg = getPlatformConfig(snip.source);
+        const badge = document.createElement('div');
+        badge.className = 'sgpt-llm-badge';
+        badge.title = 'Saved from ' + srcCfg.label;
+        badge.innerHTML = `<img src="${srcCfg.defaultFavicon}" width="14" height="14" alt=""> <span>${srcCfg.label}</span>`;
+        item.addEventListener('dragstart', handleDragStart);
+        item.addEventListener('dragend', handleDragEnd);
+        item.addEventListener('click', function(e) {
+          if (e.target === xBtn || badge.contains(e.target)) return;
+          navigator.clipboard.writeText(snip.text).catch(err => console.error('Clipboard write failed:', err)).then(() => {
+            item.classList.add('sgpt-snippet-copied');
+            let tooltip = document.createElement('div');
+            tooltip.textContent = 'Copied!';
+            tooltip.style.position = 'absolute';
+            tooltip.style.top = '8px';
+            tooltip.style.right = '48px';
+            tooltip.style.background = '#10a37f';
+            tooltip.style.color = '#fff';
+            tooltip.style.padding = '2px 10px';
+            tooltip.style.borderRadius = '8px';
+            tooltip.style.fontSize = '0.9em';
+            tooltip.style.zIndex = '10';
+            tooltip.style.boxShadow = '0 2px 8px rgba(0,0,0,0.10)';
+            item.appendChild(tooltip);
+            setTimeout(() => {
+              item.classList.remove('sgpt-snippet-copied');
+              if (tooltip.parentNode) tooltip.parentNode.removeChild(tooltip);
+            }, 900);
+          });
         });
+        item.appendChild(xBtn);
+        item.appendChild(textDiv);
+        item.appendChild(badge);
+        list.appendChild(item);
       });
-      // Layout
-      item.appendChild(xBtn);
-      item.appendChild(editable);
-      item.appendChild(badge);
-      list.appendChild(item);
+      let footer = sidebar.querySelector('.sgpt-sidebar-footer');
+      let copyBtn = footer.querySelector('.sgpt-copy-to-chat-btn');
+      if (!copyBtn) {
+        copyBtn = document.createElement('button');
+        copyBtn.className = 'sgpt-copy-to-chat-btn';
+        copyBtn.textContent = 'Copy to Chat';
+        copyBtn.style.marginRight = '8px';
+        copyBtn.onclick = () => {
+          loadSnippets((allSnippets) => {
+            const text = allSnippets.map(s => s.text).join('\n\n');
+            let input = document.querySelector('div#prompt-textarea[contenteditable="true"]');
+            if (!input) {
+              input = Array.from(document.querySelectorAll('div[role="textbox"]')).find(el => el.isContentEditable && el.offsetParent !== null);
+            }
+            if (!input) {
+              input = Array.from(document.querySelectorAll('textarea')).find(el => el.offsetParent !== null);
+            }
+            if (input) {
+              if (input.tagName === 'TEXTAREA') {
+                input.value = text;
+                input.dispatchEvent(new Event('input', { bubbles: true }));
+                input.focus();
+                input.setSelectionRange(input.value.length, input.value.length);
+              } else if (input.isContentEditable) {
+                input.innerText = text;
+                input.dispatchEvent(new Event('input', { bubbles: true }));
+                input.focus();
+                const range = document.createRange();
+                range.selectNodeContents(input);
+                range.collapse(false);
+                const sel = window.getSelection();
+                sel.removeAllRanges();
+                sel.addRange(range);
+              }
+            } else {
+              alert('Could not find the chat textbox.');
+            }
+          });
+        };
+        footer.insertBefore(copyBtn, footer.firstChild);
+      }
     });
-    // Add or update the Copy to Chat button in the footer
-    let footer = sidebar.querySelector('.sgpt-sidebar-footer');
-    let copyBtn = footer.querySelector('.sgpt-copy-to-chat-btn');
-    if (!copyBtn) {
-      copyBtn = document.createElement('button');
-      copyBtn.className = 'sgpt-copy-to-chat-btn';
-      copyBtn.textContent = 'Copy to Chat';
-      copyBtn.style.marginRight = '8px';
-      copyBtn.onclick = () => {
-        const snippets = loadSnippets();
-        const text = snippets.map(s => s.text).join('\n\n');
-        // Try to find the ChatGPT chat textbox (prefer new ProseMirror input)
-        let input = document.querySelector('div#prompt-textarea[contenteditable="true"]');
-        if (!input) {
-          // Fallback: any visible contenteditable div
-          input = Array.from(document.querySelectorAll('div[role="textbox"]')).find(el => el.isContentEditable && el.offsetParent !== null);
-        }
-        if (!input) {
-          // Fallback: any visible textarea
-          input = Array.from(document.querySelectorAll('textarea')).find(el => el.offsetParent !== null);
-        }
-        if (input) {
-          if (input.tagName === 'TEXTAREA') {
-            input.value = text;
-            input.dispatchEvent(new Event('input', { bubbles: true }));
-            input.focus();
-            // Move cursor to end
-            input.setSelectionRange(input.value.length, input.value.length);
-          } else if (input.isContentEditable) {
-            input.innerText = text;
-            input.dispatchEvent(new Event('input', { bubbles: true }));
-            input.focus();
-            // Move caret to end for contenteditable
-            const range = document.createRange();
-            range.selectNodeContents(input);
-            range.collapse(false);
-            const sel = window.getSelection();
-            sel.removeAllRanges();
-            sel.addRange(range);
-          }
-        } else {
-          alert('Could not find the chat textbox.');
-        }
-      };
-      footer.insertBefore(copyBtn, footer.firstChild);
-    }
   }
 
   function exportSnippets() {
-    try {
-      const snippets = loadSnippets();
-      const text = snippets.map(s => `---\n${s.title} (${new Date(s.date).toLocaleString()})\n${s.text}\n`).join('\n');
-      const blob = new Blob([text], {type: 'text/plain'});
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = 'snippets_export.txt';
-      a.click();
-      setTimeout(() => URL.revokeObjectURL(url), 1000);
-    } catch (e) {
-      console.error('Export error:', e);
-    }
+    loadSnippets((snippets) => {
+      try {
+        const text = snippets.map(s => `---\n${s.title} (${new Date(s.date).toLocaleString()})\n${s.text}\n`).join('\n');
+        const blob = new Blob([text], {type: 'text/plain'});
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'snippets_export.txt';
+        a.click();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+      } catch (e) {
+        console.error('Export error:', e);
+      }
+    });
   }
 
   // --- THEME SYNC ---
@@ -477,11 +483,13 @@ console.log('Snippet Saver content script loaded');
         borderRadius: `${cssVars.radius} 0 0 ${cssVars.radius}`,
         fontFamily: cssVars.font,
       });
-      sidebar.style.setProperty('--sgpt-text', cssVars.text);
-      sidebar.style.setProperty('--sgpt-text-secondary', cssVars.textSecondary);
-      sidebar.style.setProperty('--sgpt-border', cssVars.border);
-      sidebar.style.setProperty('--sgpt-card-bg', cssVars.cardBg);
-      sidebar.style.setProperty('--sgpt-hover', cssVars.hoverBg);
+      const root = document.documentElement;
+      root.style.setProperty('--sgpt-bg', cssVars.bg);
+      root.style.setProperty('--sgpt-text', cssVars.text);
+      root.style.setProperty('--sgpt-text-secondary', cssVars.textSecondary);
+      root.style.setProperty('--sgpt-border', cssVars.border);
+      root.style.setProperty('--sgpt-card-bg', cssVars.cardBg);
+      root.style.setProperty('--sgpt-hover', cssVars.hoverBg);
     } catch (e) {
       console.error('Theme sync error:', e);
     }
@@ -508,13 +516,13 @@ console.log('Snippet Saver content script loaded');
       Object.assign(saveBtn.style, {
         position: 'absolute',
         zIndex: 9999,
-        background: 'var(--bg-primary, #fff)',
-        color: 'var(--text-primary, #222)',
-        border: '1px solid var(--border-medium, #e5e5e5)',
+        background: 'var(--sgpt-bg)',
+        color: 'var(--sgpt-text)',
+        border: '1px solid var(--sgpt-border)',
         borderRadius: '8px',
         padding: '4px 12px',
         fontSize: '1rem',
-        boxShadow: 'var(--shadow-lg, 0 4px 32px rgba(0,0,0,0.15))',
+        boxShadow: '0 4px 32px rgba(0,0,0,0.15)',
         cursor: 'pointer',
         whiteSpace: 'nowrap',
         visibility: 'hidden',
@@ -547,12 +555,13 @@ console.log('Snippet Saver content script loaded');
           source: getPlatform(),
         };
         console.log('Saving snippet:', snippet);
-        saveSnippet(snippet);
-        renderSnippets();
         saveBtn.remove();
         saveBtn = null;
         sel.removeAllRanges();
-        toggleSidebar(true);
+        saveSnippet(snippet, () => {
+          renderSnippets();
+          toggleSidebar(true);
+        });
       });
 
       // Remove if user clicks elsewhere
@@ -612,7 +621,7 @@ console.log('Snippet Saver content script loaded');
         position: relative;
         padding: 1em 1em 2.4em 1em;
         cursor: grab;
-        transition: box-shadow 0.18s, background 0.18s, transform 0.18s;
+        transition: box-shadow 0.18s, background 0.18s, transform 0.18s, opacity 0.18s;
         background: var(--sgpt-card-bg);
         border-radius: 10px;
         margin-bottom: 0.6em;
@@ -626,22 +635,23 @@ console.log('Snippet Saver content script loaded');
         border-color: var(--sgpt-text-secondary);
       }
       #${SIDEBAR_ID} .sgpt-snippet-item.dragging {
-        opacity: 0.85;
+        opacity: 0.4;
         background: var(--sgpt-card-bg);
-        box-shadow: 0 4px 24px rgba(0,0,0,0.10);
-        transform: scale(1.03);
+        box-shadow: 0 8px 32px rgba(0,0,0,0.18);
+        transform: scale(1.02) rotate(0.5deg);
         cursor: grabbing;
         z-index: 2;
+        border-color: var(--sgpt-text-secondary);
       }
 
       /* --- Drop Indicator --- */
       #${SIDEBAR_ID} .sgpt-drop-indicator {
-        height: 0;
-        border-top: 2.5px solid var(--sgpt-text);
-        margin: -0.3em 0 0.3em 0;
-        border-radius: 2px;
-        transition: border-color 0.18s, margin 0.18s;
-        animation: sgpt-drop-indicator-fadein 0.18s;
+        height: 3px;
+        background: var(--sgpt-text);
+        border-radius: 3px;
+        animation: sgpt-drop-indicator-fadein 0.12s ease-out;
+        pointer-events: none;
+        flex-shrink: 0;
       }
       @keyframes sgpt-drop-indicator-fadein {
         from { opacity: 0; }
@@ -672,8 +682,8 @@ console.log('Snippet Saver content script loaded');
         color: #dc2626;
       }
 
-      /* --- Editable Text --- */
-      #${SIDEBAR_ID} .sgpt-snippet-editable {
+      /* --- Snippet Text --- */
+      #${SIDEBAR_ID} .sgpt-snippet-text {
         outline: none;
         border: none;
         background: transparent;
@@ -684,13 +694,8 @@ console.log('Snippet Saver content script loaded');
         white-space: pre-wrap;
         word-break: break-word;
         padding: 0.2em 0;
-        border-radius: 6px;
-        transition: background 0.15s;
-      }
-      #${SIDEBAR_ID} .sgpt-snippet-editable:focus {
-        background: var(--sgpt-hover);
-        padding: 0.2em 0.4em;
-        margin: 0 -0.4em;
+        -webkit-user-select: none;
+        user-select: none;
       }
 
       /* --- LLM Badge --- */
@@ -760,6 +765,9 @@ console.log('Snippet Saver content script loaded');
       const root = document.documentElement;
       const observer = new MutationObserver(syncTheme);
       observer.observe(root, { attributes: true, attributeFilter: ['class', 'style'] });
+      if (window.matchMedia) {
+        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', syncTheme);
+      }
     } catch (e) {
       console.error('Theme observer error:', e);
     }
