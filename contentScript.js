@@ -64,8 +64,8 @@ console.log('Snippet Saver content script loaded');
     try {
       const isDark = getTheme() === 'dark';
       const defs = isDark
-        ? { bg: '#212121', text: '#ececec', textSecondary: '#999', border: '#424242', shadow: '0 4px 32px rgba(0,0,0,0.5)', radius: '12px', font: 'Inter, sans-serif' }
-        : { bg: '#fff', text: '#222', textSecondary: '#666', border: '#e5e5e5', shadow: '0 4px 32px rgba(0,0,0,0.15)', radius: '12px', font: 'Inter, sans-serif' };
+        ? { bg: '#212121', text: '#ececec', textSecondary: '#999', border: '#424242', shadow: '0 4px 32px rgba(0,0,0,0.5)', radius: '12px', font: 'Inter, sans-serif', cardBg: '#2f2f2f', hoverBg: '#3a3a3a' }
+        : { bg: '#fff', text: '#222', textSecondary: '#666', border: '#e5e5e5', shadow: '0 4px 32px rgba(0,0,0,0.15)', radius: '12px', font: 'Inter, sans-serif', cardBg: '#f5f5f5', hoverBg: '#ebebeb' };
       const tryVars = (names, d) => {
         for (const n of names) {
           const v = readCSSVar(n);
@@ -81,10 +81,12 @@ console.log('Snippet Saver content script loaded');
         shadow: tryVars(['--shadow-lg', '--shadow', '--elevation'], defs.shadow),
         radius: tryVars(['--radius-lg', '--radius', '--border-radius'], defs.radius),
         font: tryVars(['--font-sans', '--font', '--font-family'], defs.font),
+        cardBg: defs.cardBg,
+        hoverBg: defs.hoverBg,
       };
     } catch (e) {
       return {
-        bg: '#fff', text: '#222', textSecondary: '#666', border: '#e5e5e5', shadow: '0 4px 32px rgba(0,0,0,0.15)', radius: '12px', font: 'Inter, sans-serif'
+        bg: '#fff', text: '#222', textSecondary: '#666', border: '#e5e5e5', shadow: '0 4px 32px rgba(0,0,0,0.15)', radius: '12px', font: 'Inter, sans-serif', cardBg: '#f5f5f5', hoverBg: '#ebebeb'
       };
     }
   }
@@ -160,6 +162,11 @@ console.log('Snippet Saver content script loaded');
       flexDirection: 'column',
       transition: 'transform 0.2s',
     });
+    sidebar.style.setProperty('--sgpt-text', cssVars.text);
+    sidebar.style.setProperty('--sgpt-text-secondary', cssVars.textSecondary);
+    sidebar.style.setProperty('--sgpt-border', cssVars.border);
+    sidebar.style.setProperty('--sgpt-card-bg', cssVars.cardBg);
+    sidebar.style.setProperty('--sgpt-hover', cssVars.hoverBg);
     sidebar.style.transform = 'translateX(100%)';
     document.body.appendChild(sidebar);
     sidebar.querySelector('.sgpt-close-btn').onclick = () => toggleSidebar(false);
@@ -470,6 +477,11 @@ console.log('Snippet Saver content script loaded');
         borderRadius: `${cssVars.radius} 0 0 ${cssVars.radius}`,
         fontFamily: cssVars.font,
       });
+      sidebar.style.setProperty('--sgpt-text', cssVars.text);
+      sidebar.style.setProperty('--sgpt-text-secondary', cssVars.textSecondary);
+      sidebar.style.setProperty('--sgpt-border', cssVars.border);
+      sidebar.style.setProperty('--sgpt-card-bg', cssVars.cardBg);
+      sidebar.style.setProperty('--sgpt-hover', cssVars.hoverBg);
     } catch (e) {
       console.error('Theme sync error:', e);
     }
@@ -576,12 +588,12 @@ console.log('Snippet Saver content script loaded');
       #${SIDEBAR_ID} .sgpt-sidebar-header {
         display: flex; align-items: center; justify-content: space-between;
         padding: 0.75em 1em; font-weight: 600; font-size: 1.05em;
-        border-bottom: 1px solid var(--border-medium,#e5e5e5);
+        border-bottom: 1px solid var(--sgpt-border);
         flex-shrink: 0;
       }
       #${SIDEBAR_ID} .sgpt-close-btn {
         background: none; border: none; width: 32px; height: 32px;
-        cursor: pointer; color: var(--text-secondary,#888);
+        cursor: pointer; color: var(--sgpt-text-secondary);
         border-radius: 8px; display: flex; align-items: center; justify-content: center;
         font-size: 1.3em; transition: background 0.15s;
       }
@@ -601,21 +613,21 @@ console.log('Snippet Saver content script loaded');
         padding: 1em 1em 2.4em 1em;
         cursor: grab;
         transition: box-shadow 0.18s, background 0.18s, transform 0.18s;
-        background: var(--bg-secondary,#fff);
+        background: var(--sgpt-card-bg);
         border-radius: 10px;
         margin-bottom: 0.6em;
-        border: 1px solid var(--border-medium,#e5e5e5);
+        border: 1px solid var(--sgpt-border);
         display: flex;
         flex-direction: column;
         box-sizing: border-box;
         z-index: 1;
       }
       #${SIDEBAR_ID} .sgpt-snippet-item:hover {
-        border-color: var(--text-secondary,#888);
+        border-color: var(--sgpt-text-secondary);
       }
       #${SIDEBAR_ID} .sgpt-snippet-item.dragging {
         opacity: 0.85;
-        background: var(--bg-primary,#fff);
+        background: var(--sgpt-card-bg);
         box-shadow: 0 4px 24px rgba(0,0,0,0.10);
         transform: scale(1.03);
         cursor: grabbing;
@@ -625,7 +637,7 @@ console.log('Snippet Saver content script loaded');
       /* --- Drop Indicator --- */
       #${SIDEBAR_ID} .sgpt-drop-indicator {
         height: 0;
-        border-top: 2.5px solid var(--text-primary,#222);
+        border-top: 2.5px solid var(--sgpt-text);
         margin: -0.3em 0 0.3em 0;
         border-radius: 2px;
         transition: border-color 0.18s, margin 0.18s;
@@ -645,7 +657,7 @@ console.log('Snippet Saver content script loaded');
         height: 26px;
         background: transparent;
         border: none;
-        color: var(--text-secondary,#888);
+        color: var(--sgpt-text-secondary);
         cursor: pointer;
         z-index: 2;
         padding: 0;
@@ -668,7 +680,7 @@ console.log('Snippet Saver content script loaded');
         font-family: inherit;
         font-size: 0.95em;
         line-height: 1.5;
-        color: var(--text-primary,#222);
+        color: var(--sgpt-text);
         white-space: pre-wrap;
         word-break: break-word;
         padding: 0.2em 0;
@@ -676,7 +688,7 @@ console.log('Snippet Saver content script loaded');
         transition: background 0.15s;
       }
       #${SIDEBAR_ID} .sgpt-snippet-editable:focus {
-        background: var(--gray-100,#f3f4f6);
+        background: var(--sgpt-hover);
         padding: 0.2em 0.4em;
         margin: 0 -0.4em;
       }
@@ -690,7 +702,7 @@ console.log('Snippet Saver content script loaded');
         align-items: center;
         gap: 4px;
         font-size: 0.75em;
-        color: var(--text-secondary,#888);
+        color: var(--sgpt-text-secondary);
         pointer-events: none;
       }
       #${SIDEBAR_ID} .sgpt-llm-badge img {
@@ -704,8 +716,8 @@ console.log('Snippet Saver content script loaded');
       #${SIDEBAR_ID} .sgpt-copy-to-chat-btn,
       #${SIDEBAR_ID} .sgpt-export-btn {
         background: transparent;
-        color: var(--text-primary,#222);
-        border: 1px solid var(--border-medium,#e5e5e5);
+        color: var(--sgpt-text);
+        border: 1px solid var(--sgpt-border);
         border-radius: 8px;
         padding: 6px 14px;
         font-size: 0.9em;
@@ -715,14 +727,14 @@ console.log('Snippet Saver content script loaded');
       }
       #${SIDEBAR_ID} .sgpt-copy-to-chat-btn:hover,
       #${SIDEBAR_ID} .sgpt-export-btn:hover {
-        background: rgba(128,128,128,0.12);
-        border-color: var(--text-primary,#222);
-        color: var(--text-primary,#222);
+        background: var(--sgpt-hover);
+        border-color: var(--sgpt-text);
+        color: var(--sgpt-text);
       }
 
       /* --- Empty State --- */
       #${SIDEBAR_ID} .sgpt-empty-state {
-        color: var(--text-secondary,#888);
+        color: var(--sgpt-text-secondary);
         padding: 2em 1em;
         text-align: center;
         font-size: 0.9em;
@@ -732,7 +744,7 @@ console.log('Snippet Saver content script loaded');
       /* --- Footer --- */
       #${SIDEBAR_ID} .sgpt-sidebar-footer {
         padding: 0.6em 0.75em;
-        border-top: 1px solid var(--border-medium,#e5e5e5);
+        border-top: 1px solid var(--sgpt-border);
         display: flex;
         gap: 0.4em;
         justify-content: flex-end;
