@@ -33,13 +33,15 @@ console.log('Snippet Saver content script loaded');
       if (root.classList.contains('light')) return 'light';
       const attr = root.getAttribute('data-theme');
       if (attr === 'dark' || attr === 'light') return attr;
-      if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) return 'dark';
-      const bg = getComputedStyle(root).backgroundColor;
-      if (bg) {
-        const rgb = bg.match(/\d+/g);
-        if (rgb && rgb.length >= 3) {
-          const brightness = (parseInt(rgb[0]) * 299 + parseInt(rgb[1]) * 587 + parseInt(rgb[2]) * 114) / 1000;
-          return brightness < 128 ? 'dark' : 'light';
+      const candidates = [document.body, root];
+      for (const el of candidates) {
+        const bg = getComputedStyle(el).backgroundColor;
+        if (bg && !bg.match(/rgba\(0,\s*0,\s*0,\s*0\)/) && bg !== 'transparent') {
+          const rgb = bg.match(/\d+/g);
+          if (rgb && rgb.length >= 3) {
+            const b = (parseInt(rgb[0]) * 299 + parseInt(rgb[1]) * 587 + parseInt(rgb[2]) * 114) / 1000;
+            return b < 128 ? 'dark' : 'light';
+          }
         }
       }
       return 'light';
@@ -48,28 +50,37 @@ console.log('Snippet Saver content script loaded');
     }
   }
 
+  function readCSSVar(name, fallback) {
+    try {
+      const val = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+      if (!val || val.startsWith('var(')) return fallback;
+      return val;
+    } catch (e) {
+      return fallback;
+    }
+  }
+
   function getCSSVars() {
     try {
-      const style = getComputedStyle(document.documentElement);
       const isDark = getTheme() === 'dark';
       const defs = isDark
         ? { bg: '#212121', text: '#ececec', textSecondary: '#999', border: '#424242', shadow: '0 4px 32px rgba(0,0,0,0.5)', radius: '12px', font: 'Inter, sans-serif' }
         : { bg: '#fff', text: '#222', textSecondary: '#666', border: '#e5e5e5', shadow: '0 4px 32px rgba(0,0,0,0.15)', radius: '12px', font: 'Inter, sans-serif' };
-      const tryVars = (names) => {
-        for (const name of names) {
-          const val = style.getPropertyValue(name);
-          if (val) return val;
+      const tryVars = (names, d) => {
+        for (const n of names) {
+          const v = readCSSVar(n);
+          if (v) return v;
         }
-        return null;
+        return d;
       };
       return {
-        bg: tryVars(['--bg-primary', '--bg', '--background', '--surface']) || defs.bg,
-        text: tryVars(['--text-primary', '--text', '--text-color', '--on-surface']) || defs.text,
-        textSecondary: tryVars(['--text-secondary', '--text-muted', '--secondary-text']) || defs.textSecondary,
-        border: tryVars(['--border-medium', '--border', '--border-color', '--outline']) || defs.border,
-        shadow: tryVars(['--shadow-lg', '--shadow', '--elevation']) || defs.shadow,
-        radius: tryVars(['--radius-lg', '--radius', '--border-radius']) || defs.radius,
-        font: tryVars(['--font-sans', '--font', '--font-family']) || defs.font,
+        bg: tryVars(['--bg-primary', '--bg', '--background', '--surface'], defs.bg),
+        text: tryVars(['--text-primary', '--text', '--text-color', '--on-surface'], defs.text),
+        textSecondary: tryVars(['--text-secondary', '--text-muted', '--secondary-text'], defs.textSecondary),
+        border: tryVars(['--border-medium', '--border', '--border-color', '--outline'], defs.border),
+        shadow: tryVars(['--shadow-lg', '--shadow', '--elevation'], defs.shadow),
+        radius: tryVars(['--radius-lg', '--radius', '--border-radius'], defs.radius),
+        font: tryVars(['--font-sans', '--font', '--font-family'], defs.font),
       };
     } catch (e) {
       return {
