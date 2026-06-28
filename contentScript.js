@@ -3,7 +3,6 @@ console.log('ChatGPT Snippet Saver content script loaded');
 (function() {
   // --- CONFIG ---
   const SIDEBAR_ID = 'chatgpt-snippet-sidebar';
-  const TOGGLE_BTN_ID = 'chatgpt-snippet-toggle-btn';
   const SNIPPET_KEY = 'chatgpt_snippets_v1';
 
   // --- UTILITIES ---
@@ -137,11 +136,7 @@ console.log('ChatGPT Snippet Saver content script loaded');
   }
 
   function createToggleButton() {
-    // Remove old button if present
-    const oldBtn = document.getElementById(TOGGLE_BTN_ID);
-    if (oldBtn) oldBtn.remove();
     if (document.getElementById('sgpt-sidebar-tab-btn')) return;
-    // Create a vertical pill/tab button
     const btn = document.createElement('button');
     btn.id = 'sgpt-sidebar-tab-btn';
     btn.setAttribute('aria-label', 'Show saved snippets');
@@ -300,7 +295,7 @@ console.log('ChatGPT Snippet Saver content script loaded');
       // Copy to clipboard on click (not on delete or edit)
       item.addEventListener('click', function(e) {
         if (e.target === xBtn || e.target === editable) return;
-        navigator.clipboard.writeText(snip.text).then(() => {
+        navigator.clipboard.writeText(snip.text).catch(err => console.error('Clipboard write failed:', err)).then(() => {
           item.classList.add('sgpt-snippet-copied');
           // Show a tooltip or highlight
           let tooltip = document.createElement('div');
@@ -388,47 +383,6 @@ console.log('ChatGPT Snippet Saver content script loaded');
       setTimeout(() => URL.revokeObjectURL(url), 1000);
     } catch (e) {
       console.error('Export error:', e);
-    }
-  }
-
-  // --- AI Cleanup (placeholder) ---
-  function aiCleanupSnippet(idx) {
-    try {
-      const snippets = loadSnippets();
-      snippets[idx].text = snippets[idx].text.trim();
-      localStorage.setItem(SNIPPET_KEY, JSON.stringify(snippets));
-      renderSnippets();
-      alert('AI cleanup coming soon!');
-    } catch (e) {
-      console.error('AI cleanup error:', e);
-    }
-  }
-
-  // Delete a snippet by index
-  function deleteSnippet(idx) {
-    let snippets = loadSnippets();
-    snippets.splice(idx, 1);
-    localStorage.setItem(SNIPPET_KEY, JSON.stringify(snippets));
-    // Remove from selected map
-    if (window.sgptSelectedSnippets) delete window.sgptSelectedSnippets[idx];
-    renderSnippets();
-  }
-
-  // Cleanup all selected snippets (placeholder: trim whitespace)
-  function cleanupSelectedSnippets() {
-    let snippets = loadSnippets();
-    let changed = false;
-    if (!window.sgptSelectedSnippets) return;
-    Object.keys(window.sgptSelectedSnippets).forEach(idx => {
-      if (window.sgptSelectedSnippets[idx]) {
-        snippets[idx].text = snippets[idx].text.trim();
-        changed = true;
-      }
-    });
-    if (changed) {
-      localStorage.setItem(SNIPPET_KEY, JSON.stringify(snippets));
-      renderSnippets();
-      alert('Coming Soon!');
     }
   }
 
@@ -554,16 +508,36 @@ console.log('ChatGPT Snippet Saver content script loaded');
         padding: 1.5em 1.2em 1.2em 1.2em;
         min-height: 3.5em;
         cursor: grab;
-        transition: box-shadow 0.18s, background 0.18s;
-        background: var(--bg-secondary,#f7f7f8);
+        transition: box-shadow 0.18s, background 0.18s, transform 0.18s;
+        background: var(--bg-secondary,#fff);
         border-radius: 12px;
         margin-bottom: 1em;
-        box-shadow: var(--shadow-xs,0 1px 2px rgba(0,0,0,0.03));
+        box-shadow: none;
         display: flex;
         flex-direction: column;
         gap: 0.5em;
-        /* Ensure space for X button */
         box-sizing: border-box;
+        z-index: 1;
+      }
+      #${SIDEBAR_ID} .sgpt-snippet-item.dragging {
+        opacity: 0.85;
+        background: var(--bg-primary,#fff);
+        box-shadow: 0 4px 24px 0 rgba(0,0,0,0.10);
+        transform: scale(1.03);
+        cursor: grabbing;
+        z-index: 2;
+      }
+      #${SIDEBAR_ID} .sgpt-drop-indicator {
+        height: 0;
+        border-top: 2.5px solid var(--text-primary,#222);
+        margin: -0.5em 0 0.5em 0;
+        border-radius: 2px;
+        transition: border-color 0.18s, margin 0.18s;
+        animation: sgpt-drop-indicator-fadein 0.18s;
+      }
+      @keyframes sgpt-drop-indicator-fadein {
+        from { opacity: 0; }
+        to { opacity: 1; }
       }
       #${SIDEBAR_ID} .sgpt-x-btn {
         position: absolute;
@@ -571,33 +545,33 @@ console.log('ChatGPT Snippet Saver content script loaded');
         right: 0.6em;
         width: 28px;
         height: 28px;
-        background: #fff;
-        border: none;
+        background: var(--bg-primary,#fff);
+        border: 1px solid var(--border-medium,#e5e5e5);
         font-size: 1.1em;
-        color: #c00;
+        color: var(--text-primary,#222);
         cursor: pointer;
         z-index: 2;
         padding: 0;
         border-radius: 50%;
-        box-shadow: 0 1px 4px 0 rgba(0,0,0,0.07);
+        box-shadow: none;
         display: flex;
         align-items: center;
         justify-content: center;
-        transition: background 0.18s, color 0.18s, box-shadow 0.18s, transform 0.13s;
+        transition: background 0.18s, color 0.18s, border 0.18s, transform 0.13s;
       }
       #${SIDEBAR_ID} .sgpt-x-btn:hover {
-        background: #ffeaea;
-        color: #a00;
-        box-shadow: 0 2px 8px 0 rgba(220,0,0,0.13);
+        background: var(--gray-100,#f3f4f6);
+        color: var(--text-primary,#222);
+        border-color: var(--text-primary,#222);
         transform: scale(1.13);
       }
       #${SIDEBAR_ID} .sgpt-snippet-editable {
         outline: none;
         border: none;
-        background: var(--bg-secondary, var(--bg-primary, #222));
+        background: transparent;
         font-family: inherit;
         font-size: 1.08em;
-        color: var(--text-primary, #fff);
+        color: var(--text-primary,#222);
         min-height: 2.5em;
         white-space: pre-wrap;
         word-break: break-word;
@@ -606,8 +580,8 @@ console.log('ChatGPT Snippet Saver content script loaded');
         transition: background 0.18s;
       }
       #${SIDEBAR_ID} .sgpt-snippet-editable:focus {
-        background: var(--bg-secondary, var(--bg-primary, #222));
-        color: var(--text-primary, #fff);
+        background: var(--gray-100,#f3f4f6);
+        color: var(--text-primary,#222);
       }
       #${SIDEBAR_ID} .sgpt-copy-to-chat-btn,
       #${SIDEBAR_ID} .sgpt-export-btn {
@@ -627,11 +601,8 @@ console.log('ChatGPT Snippet Saver content script loaded');
       #${SIDEBAR_ID} .sgpt-export-btn:hover {
         background: var(--gray-100,#f3f4f6);
         color: var(--text-primary,#222);
-        border-color: var(--border-medium,#e5e5e5);
+        border-color: var(--text-primary,#222);
         transform: scale(1.06);
-      }
-      @keyframes sgpt-fadein {
-        to { opacity: 1; transform: translateY(0) scale(1); }
       }
       #${SIDEBAR_ID} .sgpt-snippet-meta {
         font-size: 0.97em; color: var(--text-secondary,#888); margin-bottom: 0.2em; display: flex; align-items: center; gap: 0.5em; justify-content: space-between;}
@@ -639,51 +610,6 @@ console.log('ChatGPT Snippet Saver content script loaded');
       #${SIDEBAR_ID} .sgpt-snippet-date { font-style: italic; font-size: 0.93em; }
       #${SIDEBAR_ID} .sgpt-snippet-text { font-family: inherit; font-size: 1.04em; margin: 0.2em 0 0.2em 0; white-space: pre-wrap; word-break: break-word; color: var(--text-primary,#222); }
       #${SIDEBAR_ID} .sgpt-snippet-actions { display: flex; gap: 0.5em; justify-content: flex-end; align-items: center; }
-
-      /* Modern pill/ghost button style with animation */
-      #${SIDEBAR_ID} .sgpt-cleanup-btn, #${SIDEBAR_ID} .sgpt-delete-btn, #${SIDEBAR_ID} .sgpt-cleanup-selected-btn {
-        display: inline-flex; align-items: center; gap: 0.3em;
-        background: var(--bg-primary,#fff);
-        color: var(--text-primary,#222);
-        border: 1px solid var(--border-medium,#e5e5e5);
-        border-radius: 999px;
-        padding: 4px 14px;
-        font-size: 1em;
-        font-weight: 500;
-        cursor: pointer;
-        transition: background 0.18s, color 0.18s, border 0.18s, transform 0.16s;
-        box-shadow: none;
-        outline: none;
-      }
-      #${SIDEBAR_ID} .sgpt-cleanup-btn:hover, #${SIDEBAR_ID} .sgpt-cleanup-selected-btn:hover, #${SIDEBAR_ID} .sgpt-delete-btn:hover {
-        background: var(--gray-100,#f3f4f6);
-        color: var(--accent,#10a37f);
-        border-color: var(--accent,#10a37f);
-        transform: scale(1.06);
-      }
-      #${SIDEBAR_ID} .sgpt-delete-btn {
-        color: #c00;
-        border-color: #f3d1d1;
-        background: var(--bg-primary,#fff);
-        padding: 4px 12px;
-        transition: background 0.18s, color 0.18s, border 0.18s, transform 0.16s;
-      }
-      #${SIDEBAR_ID} .sgpt-delete-btn:hover {
-        background: #ffeaea;
-        color: #a00;
-        border-color: #e57373;
-        transform: scale(1.06);
-      }
-      /* Modern checkbox style */
-      #${SIDEBAR_ID} .sgpt-select-checkbox {
-        width: 1.25em; height: 1.25em; accent-color: var(--accent,#10a37f); border-radius: 6px; border: 1.5px solid var(--border-medium,#e5e5e5); margin-right: 10px; cursor: pointer; vertical-align: middle;
-        box-shadow: 0 1px 2px rgba(0,0,0,0.03);
-        transition: accent-color 0.18s, border 0.18s, box-shadow 0.18s;
-      }
-      #${SIDEBAR_ID} .sgpt-select-checkbox:focus {
-        outline: 2px solid var(--accent,#10a37f);
-        box-shadow: 0 0 0 2px var(--accent,#10a37f,0.15);
-      }
       #${SIDEBAR_ID} .sgpt-sidebar-footer {
         padding: 0.75em 1em; border-top: 1px solid var(--border-medium,#e5e5e5); text-align: right; display: flex; gap: 0.5em; justify-content: flex-end; align-items: center;}
     `;
@@ -695,7 +621,6 @@ console.log('ChatGPT Snippet Saver content script loaded');
       const root = document.documentElement;
       const observer = new MutationObserver(syncTheme);
       observer.observe(root, { attributes: true, attributeFilter: ['class', 'style'] });
-      setInterval(syncTheme, 2000);
     } catch (e) {
       console.error('Theme observer error:', e);
     }
@@ -722,113 +647,4 @@ console.log('ChatGPT Snippet Saver content script loaded');
   } else {
     setTimeout(main, 500);
   }
-})();
-
-// Add styles for new UI
-(function injectModernSnippetStyles() {
-  if (document.getElementById('sgpt-modern-snippet-style')) return;
-  const style = document.createElement('style');
-  style.id = 'sgpt-modern-snippet-style';
-  style.textContent = `
-    #${SIDEBAR_ID} .sgpt-snippet-item {
-      position: relative;
-      padding: 1.5em 1.2em 1.2em 1.2em;
-      min-height: 3.5em;
-      cursor: grab;
-      transition: box-shadow 0.18s, background 0.18s, transform 0.18s;
-      background: var(--bg-secondary,#fff);
-      border-radius: 12px;
-      margin-bottom: 1em;
-      box-shadow: none;
-      display: flex;
-      flex-direction: column;
-      gap: 0.5em;
-      box-sizing: border-box;
-      z-index: 1;
-    }
-    #${SIDEBAR_ID} .sgpt-snippet-item.dragging {
-      opacity: 0.85;
-      background: var(--bg-primary,#fff);
-      box-shadow: 0 4px 24px 0 rgba(0,0,0,0.10);
-      transform: scale(1.03);
-      cursor: grabbing;
-      z-index: 2;
-    }
-    #${SIDEBAR_ID} .sgpt-drop-indicator {
-      height: 0;
-      border-top: 2.5px solid var(--text-primary,#222);
-      margin: -0.5em 0 0.5em 0;
-      border-radius: 2px;
-      transition: border-color 0.18s, margin 0.18s;
-      animation: sgpt-drop-indicator-fadein 0.18s;
-    }
-    @keyframes sgpt-drop-indicator-fadein {
-      from { opacity: 0; }
-      to { opacity: 1; }
-    }
-    #${SIDEBAR_ID} .sgpt-x-btn {
-      position: absolute;
-      top: 0.6em;
-      right: 0.6em;
-      width: 28px;
-      height: 28px;
-      background: var(--bg-primary,#fff);
-      border: 1px solid var(--border-medium,#e5e5e5);
-      font-size: 1.1em;
-      color: var(--text-primary,#222);
-      cursor: pointer;
-      z-index: 2;
-      padding: 0;
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      transition: background 0.18s, color 0.18s, border 0.18s, transform 0.13s;
-      box-shadow: none;
-    }
-    #${SIDEBAR_ID} .sgpt-x-btn:hover {
-      background: var(--gray-100,#f3f4f6);
-      color: var(--text-primary,#222);
-      border-color: var(--text-primary,#222);
-      transform: scale(1.13);
-    }
-    #${SIDEBAR_ID} .sgpt-snippet-editable {
-      outline: none;
-      border: none;
-      background: transparent;
-      font-family: inherit;
-      font-size: 1.08em;
-      color: var(--text-primary,#222);
-      min-height: 2.5em;
-      white-space: pre-wrap;
-      word-break: break-word;
-      padding: 0.2em 0.1em 0.7em 0.1em;
-      border-radius: 8px;
-      transition: background 0.18s;
-    }
-    #${SIDEBAR_ID} .sgpt-snippet-editable:focus {
-      background: var(--gray-100,#f3f4f6);
-      color: var(--text-primary,#222);
-    }
-    #${SIDEBAR_ID} .sgpt-copy-to-chat-btn {
-      background: var(--bg-primary,#fff);
-      color: var(--text-primary,#222);
-      border: 1px solid var(--border-medium,#e5e5e5);
-      border-radius: 999px;
-      padding: 4px 16px;
-      font-size: 1em;
-      cursor: pointer;
-      font-weight: 500;
-      transition: background 0.18s, color 0.18s, border 0.18s, transform 0.16s;
-      margin-bottom: 0;
-      box-shadow: none;
-    }
-    #${SIDEBAR_ID} .sgpt-copy-to-chat-btn:hover {
-      background: var(--gray-100,#f3f4f6);
-      color: var(--text-primary,#222);
-      border-color: var(--text-primary,#222);
-      transform: scale(1.06);
-    }
-  `;
-  document.head.appendChild(style);
 })(); 
