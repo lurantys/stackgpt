@@ -535,7 +535,7 @@ console.log('ChatGPT Snippet Saver content script loaded');
         font-size: 1.3em; transition: background 0.15s;
       }
       #${SIDEBAR_ID} .sgpt-close-btn:hover {
-        background: var(--gray-100,#f3f4f6); color: var(--text-primary,#222);
+        background: #fef2f2; color: #dc2626;
       }
 
       /* --- Snippet List --- */
