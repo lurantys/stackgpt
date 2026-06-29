@@ -133,6 +133,12 @@ console.log('Snippet Saver content script loaded');
           </svg>
         </button>
       </div>
+      <div class="sgpt-drop-zone">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 5v14M5 12l7 7 7-7"/>
+        </svg>
+        Drop to save snippet
+      </div>
       <div class="sgpt-snippet-list"></div>
       <div class="sgpt-sidebar-footer">
         <button class="sgpt-export-btn">Export</button>
@@ -168,6 +174,30 @@ console.log('Snippet Saver content script loaded');
     sidebar.querySelector('.sgpt-close-btn').onclick = () => toggleSidebar(false);
     sidebar.querySelector('.sgpt-export-btn').onclick = exportSnippets;
     renderSnippets();
+    sidebar.addEventListener('dragenter', (e) => {
+      if (!document.querySelector('.sgpt-snippet-item.dragging') && Array.from(e.dataTransfer.types).includes('text/plain')) {
+        sidebar.querySelector('.sgpt-drop-zone').classList.add('active');
+      }
+    });
+    sidebar.addEventListener('dragover', (e) => e.preventDefault());
+    sidebar.addEventListener('dragleave', (e) => {
+      if (!sidebar.contains(e.relatedTarget)) {
+        sidebar.querySelector('.sgpt-drop-zone').classList.remove('active');
+      }
+    });
+    sidebar.addEventListener('drop', (e) => {
+      e.preventDefault();
+      const dropZone = sidebar.querySelector('.sgpt-drop-zone');
+      dropZone.classList.remove('active');
+      const text = e.dataTransfer.getData('text/plain');
+      if (text && text.trim()) {
+        const snippet = { text: text.trim(), title: getConversationTitle(), date: Date.now(), source: getPlatform() };
+        saveSnippet(snippet, () => {
+          renderSnippets();
+          toggleSidebar(true);
+        });
+      }
+    });
   }
 
   // --- Sidebar Toggle State ---
@@ -221,9 +251,35 @@ console.log('Snippet Saver content script loaded');
       outline: 'none',
       transition: 'background 0.2s',
     });
-    btn.onmouseenter = () => { btn.style.background = 'var(--sgpt-hover)'; };
-    btn.onmouseleave = () => { btn.style.background = 'var(--sgpt-bg)'; };
+    btn.onmouseenter = () => { if (!btn.classList.contains('sgpt-dragover')) btn.style.background = 'var(--sgpt-hover)'; };
+    btn.onmouseleave = () => { if (!btn.classList.contains('sgpt-dragover')) btn.style.background = 'var(--sgpt-bg)'; };
     btn.onclick = () => toggleSidebar();
+    btn.addEventListener('dragover', (e) => {
+      if (!document.querySelector('.sgpt-snippet-item.dragging') && Array.from(e.dataTransfer.types).includes('text/plain')) {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'copy';
+        btn.classList.add('sgpt-dragover');
+        btn.style.background = 'var(--sgpt-hover)';
+      }
+    });
+    btn.addEventListener('dragleave', () => {
+      btn.classList.remove('sgpt-dragover');
+      btn.style.background = 'var(--sgpt-bg)';
+    });
+    btn.addEventListener('drop', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      btn.classList.remove('sgpt-dragover');
+      btn.style.background = 'var(--sgpt-bg)';
+      const text = e.dataTransfer.getData('text/plain');
+      if (text && text.trim()) {
+        const snippet = { text: text.trim(), title: getConversationTitle(), date: Date.now(), source: getPlatform() };
+        saveSnippet(snippet, () => {
+          renderSnippets();
+          toggleSidebar(true);
+        });
+      }
+    });
     document.body.appendChild(btn);
   }
 
@@ -316,8 +372,39 @@ console.log('Snippet Saver content script loaded');
 
       function handleDrop(e) {
         e.preventDefault();
+        e.stopPropagation();
         stopDragScroll();
-        if (!dropIndicator || !dropIndicator.parentNode) return;
+        document.querySelector('.sgpt-drop-zone').classList.remove('active');
+        if (!dropIndicator || !dropIndicator.parentNode) {
+          hideIndicator();
+          if (!dragSrcEl) {
+            const text = e.dataTransfer.getData('text/plain');
+            if (text && text.trim()) {
+              saveSnippet({ text: text.trim(), title: getConversationTitle(), date: Date.now(), source: getPlatform() }, () => {
+                renderSnippets();
+                toggleSidebar(true);
+              });
+            }
+          }
+          return;
+        }
+        if (!dragSrcEl) {
+          const toIdx = [...dropIndicator.parentNode.children].indexOf(dropIndicator);
+          hideIndicator();
+          const text = e.dataTransfer.getData('text/plain');
+          if (text && text.trim()) {
+            const snippet = { text: text.trim(), title: getConversationTitle(), date: Date.now(), source: getPlatform() };
+            chrome.storage.local.get(SNIPPET_KEY, (result) => {
+              const all = result[SNIPPET_KEY] || [];
+              all.splice(toIdx, 0, snippet);
+              chrome.storage.local.set({ [SNIPPET_KEY]: all }, () => {
+                renderSnippets();
+                toggleSidebar(true);
+              });
+            });
+          }
+          return;
+        }
         const parent = dropIndicator.parentNode;
         const refNode = dropIndicator.nextSibling;
         const toIdx = [...parent.children].indexOf(dropIndicator);
@@ -644,6 +731,27 @@ console.log('Snippet Saver content script loaded');
         border-color: var(--sgpt-text-secondary);
       }
 
+      /* --- Drop Zone Overlay --- */
+      #${SIDEBAR_ID} .sgpt-drop-zone {
+        position: absolute; inset: 0;
+        display: flex; flex-direction: column; align-items: center; justify-content: center;
+        gap: 6px;
+        background: rgba(128,128,128,0.04);
+        backdrop-filter: blur(3px);
+        border: 2px dashed var(--sgpt-text-secondary);
+        border-radius: 14px;
+        margin: 4px;
+        z-index: 100;
+        pointer-events: none;
+        opacity: 0;
+        transition: opacity 0.15s;
+        font-size: 0.95em;
+        color: var(--sgpt-text-secondary);
+      }
+      #${SIDEBAR_ID} .sgpt-drop-zone.active {
+        opacity: 1;
+      }
+
       /* --- Drop Indicator --- */
       #${SIDEBAR_ID} .sgpt-drop-indicator {
         height: 3px;
@@ -746,6 +854,12 @@ console.log('Snippet Saver content script loaded');
         line-height: 1.5;
       }
 
+      /* --- Toggle Button Drag Over --- */
+      #sgpt-sidebar-tab-btn.sgpt-dragover {
+        border-color: var(--sgpt-text) !important;
+        box-shadow: 0 0 0 2px var(--sgpt-text-secondary), 0 4px 32px rgba(0,0,0,0.15) !important;
+      }
+
       /* --- Footer --- */
       #${SIDEBAR_ID} .sgpt-sidebar-footer {
         padding: 0.6em 0.75em;
@@ -782,6 +896,14 @@ console.log('Snippet Saver content script loaded');
       document.addEventListener('selectionchange', onSelection);
       observeThemeChanges();
       syncTheme();
+      document.addEventListener('click', (e) => {
+        if (!sidebarVisible) return;
+        const sidebar = document.getElementById(SIDEBAR_ID);
+        if (!sidebar) return;
+        if (sidebar.contains(e.target)) return;
+        if (e.target.closest('#sgpt-sidebar-tab-btn')) return;
+        toggleSidebar(false);
+      });
       // Sidebar starts hidden
       toggleSidebar(false);
     } catch (e) {
