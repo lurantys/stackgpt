@@ -13,12 +13,13 @@
         "https://gemini.google.com/*",
         "https://grok.com/*"
       ],
-      "js": ["contentScript.js"],
+      "js": ["contentScript.min.js"],
       "run_at": "document_idle"
     }
   ],
   "icons": {
-    "48": "icon.png",
-    "128": "icon.png"
+    "16": "icon16.png",
+    "48": "icon48.png",
+    "128": "icon128.png"
   }
 }

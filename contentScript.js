@@ -584,6 +584,7 @@ console.log('Snippet Saver content script loaded');
         };
         footer.insertBefore(copyBtn, footer.firstChild);
       }
+      copyBtn.disabled = !snippets.length;
       const exportBtn = footer.querySelector('.sgpt-export-btn');
       if (exportBtn) exportBtn.disabled = !snippets.length;
       const deleteBtn = footer.querySelector('.sgpt-delete-all-btn');
@@ -616,6 +617,7 @@ console.log('Snippet Saver content script loaded');
 
   function exportSnippets() {
     loadSnippets((snippets) => {
+      if (!snippets.length) return;
       try {
         const text = snippets.map(s => `---\n${s.title} (${new Date(s.date).toLocaleString()})\n${s.text}\n`).join('\n');
         const blob = new Blob([text], {type: 'text/plain'});
