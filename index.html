@@ -32,9 +32,8 @@
     .nav-logo {
       font-size: 1.5rem; font-weight: 700; color: #111827;
       display: flex; align-items: center; gap: 0.6em;
-      text-decoration: none;
     }
-    .nav-logo img { width: 36px; height: 36px; border-radius: 8px; }
+    .nav-logo img { width: 36px; height: 36px; border-radius: 8px; pointer-events: none; }
     .nav-cta {
       font-size: 0.875rem; font-weight: 600;
       padding: 0.6em 1.5em;
@@ -146,10 +145,10 @@
 </head>
 <body>
   <nav>
-    <a href="/" class="nav-logo">
-      <img src="extension/icon48.png" alt="StackGPT">
+    <div class="nav-logo">
+      <img src="extension/icon48.png" alt="">
       StackGPT
-    </a>
+    </div>
     <a href="https://github.com/lurantys/stackgpt/releases/download/latest/stackgpt-extension.zip" class="nav-cta">Get the Extension</a>
   </nav>
 
