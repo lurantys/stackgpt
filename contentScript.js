@@ -140,12 +140,25 @@ console.log('Snippet Saver content script loaded');
         Drop to save snippet
       </div>
       <div class="sgpt-search-container">
-        <input type="text" class="sgpt-search-input" placeholder="Search snippets...">
+        <svg class="sgpt-search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="11" cy="11" r="7"/><line x1="16.5" y1="16.5" x2="21" y2="21"/>
+        </svg>
+        <input type="text" class="sgpt-search-input" placeholder="Search">
       </div>
       <div class="sgpt-snippet-list"></div>
       <div class="sgpt-sidebar-footer">
-        <button class="sgpt-delete-all-btn">Delete All</button>
-        <button class="sgpt-export-btn">Export</button>
+        <button class="sgpt-delete-all-btn">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+          </svg>
+          <span>Delete All</span>
+        </button>
+        <button class="sgpt-export-btn">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+          </svg>
+          <span>Export</span>
+        </button>
       </div>
     `;
     Object.assign(sidebar.style, {
@@ -525,7 +538,7 @@ console.log('Snippet Saver content script loaded');
       if (!copyBtn) {
         copyBtn = document.createElement('button');
         copyBtn.className = 'sgpt-copy-to-chat-btn';
-        copyBtn.textContent = 'Copy to Chat';
+        copyBtn.innerHTML = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg><span>Copy to Chat</span>';
         copyBtn.style.marginRight = '8px';
         copyBtn.onclick = () => {
           loadSnippets((allSnippets) => {
@@ -569,17 +582,18 @@ console.log('Snippet Saver content script loaded');
         deleteBtn.disabled = !snippets.length;
         if (!deleteBtn._listener) {
           deleteBtn._listener = true;
+          const defaultHTML = deleteBtn.innerHTML;
           deleteBtn.onclick = () => {
             if (deleteBtn.classList.contains('confirm')) {
               saveAll([], () => renderSnippets());
-              deleteBtn.textContent = 'Delete All';
+              deleteBtn.innerHTML = defaultHTML;
               deleteBtn.classList.remove('confirm');
             } else {
-              deleteBtn.textContent = 'Confirm?';
+              deleteBtn.innerHTML = 'Confirm?';
               deleteBtn.classList.add('confirm');
               setTimeout(() => {
                 if (deleteBtn.classList.contains('confirm')) {
-                  deleteBtn.textContent = 'Delete All';
+                  deleteBtn.innerHTML = defaultHTML;
                   deleteBtn.classList.remove('confirm');
                 }
               }, 2500);
@@ -759,14 +773,13 @@ console.log('Snippet Saver content script loaded');
         background: var(--sgpt-card-bg);
         border-radius: 10px;
         margin-bottom: 0.6em;
-        border: 1px solid var(--sgpt-border);
         display: flex;
         flex-direction: column;
         box-sizing: border-box;
         z-index: 1;
       }
       #${SIDEBAR_ID} .sgpt-snippet-item:hover {
-        border-color: var(--sgpt-text-secondary);
+        background: var(--sgpt-hover);
       }
       #${SIDEBAR_ID} .sgpt-snippet-item.dragging {
         opacity: 0.4;
@@ -775,7 +788,6 @@ console.log('Snippet Saver content script loaded');
         transform: scale(1.02) rotate(0.5deg);
         cursor: grabbing;
         z-index: 2;
-        border-color: var(--sgpt-text-secondary);
       }
 
       /* --- Drop Zone Overlay --- */
@@ -801,12 +813,21 @@ console.log('Snippet Saver content script loaded');
 
       /* --- Search Input --- */
       #${SIDEBAR_ID} .sgpt-search-container {
+        position: relative;
         padding: 0.4em 0.75em;
         flex-shrink: 0;
       }
+      #${SIDEBAR_ID} .sgpt-search-icon {
+        position: absolute;
+        left: 1.25em;
+        top: 50%;
+        transform: translateY(-50%);
+        color: var(--sgpt-text-secondary);
+        pointer-events: none;
+      }
       #${SIDEBAR_ID} .sgpt-search-input {
         width: 100%;
-        padding: 0.4em 0.6em;
+        padding: 0.45em 0.6em 0.45em 2em;
         border: 1px solid var(--sgpt-border);
         border-radius: 8px;
         background: var(--sgpt-card-bg);
@@ -903,30 +924,30 @@ console.log('Snippet Saver content script loaded');
       #${SIDEBAR_ID} .sgpt-export-btn,
       #${SIDEBAR_ID} .sgpt-delete-all-btn {
         background: transparent;
-        color: var(--sgpt-text);
-        border: 1px solid var(--sgpt-border);
-        border-radius: 8px;
-        padding: 6px 14px;
-        font-size: 0.9em;
+        color: var(--sgpt-text-secondary);
+        border: none;
+        border-radius: 6px;
+        padding: 6px 10px;
+        font-size: 0.85em;
         cursor: pointer;
         font-weight: 500;
-        transition: background 0.15s, color 0.15s, border-color 0.15s;
+        transition: background 0.15s, color 0.15s;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
       }
       #${SIDEBAR_ID} .sgpt-copy-to-chat-btn:hover,
       #${SIDEBAR_ID} .sgpt-export-btn:hover {
         background: var(--sgpt-hover);
-        border-color: var(--sgpt-text);
         color: var(--sgpt-text);
       }
       #${SIDEBAR_ID} .sgpt-delete-all-btn:hover:not(:disabled) {
         background: #fef2f2;
         color: #dc2626;
-        border-color: #fecaca;
       }
       #${SIDEBAR_ID} .sgpt-delete-all-btn.confirm {
         background: #fef2f2;
         color: #dc2626;
-        border-color: #fecaca;
         font-weight: 600;
       }
       #${SIDEBAR_ID} .sgpt-delete-all-btn:disabled {
