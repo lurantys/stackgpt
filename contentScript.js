@@ -43,8 +43,17 @@ console.log('Snippet Saver content script loaded');
           if (rgb && rgb.length >= 3) {
             const b = (parseInt(rgb[0]) * 299 + parseInt(rgb[1]) * 587 + parseInt(rgb[2]) * 114) / 1000;
             return b < 128 ? 'dark' : 'light';
-          }
-        }
+    }
+  }
+
+  function applyFilter() {
+    const items = document.querySelectorAll('.sgpt-snippet-item');
+    const search = _searchTerm.toLowerCase().trim();
+    items.forEach(item => {
+      const text = item.querySelector('.sgpt-snippet-text').textContent.toLowerCase();
+      item.classList.toggle('filtered-out', search && !text.includes(search));
+    });
+  }
       }
       return 'light';
     } catch (e) {
@@ -139,6 +148,9 @@ console.log('Snippet Saver content script loaded');
         </svg>
         Drop to save snippet
       </div>
+      <div class="sgpt-search-container">
+        <input type="text" class="sgpt-search-input" placeholder="Search snippets...">
+      </div>
       <div class="sgpt-snippet-list"></div>
       <div class="sgpt-sidebar-footer">
         <button class="sgpt-export-btn">Export</button>
@@ -199,10 +211,15 @@ console.log('Snippet Saver content script loaded');
         });
       }
     });
+    sidebar.querySelector('.sgpt-search-input').addEventListener('input', (e) => {
+      _searchTerm = e.target.value;
+      applyFilter();
+    });
   }
 
   // --- Sidebar Toggle State ---
   let sidebarVisible = false;
+  let _searchTerm = '';
   function toggleSidebar(force) {
     let sidebar = document.getElementById(SIDEBAR_ID);
     if (!sidebar) {
@@ -501,6 +518,7 @@ console.log('Snippet Saver content script loaded');
         item.appendChild(badge);
         list.appendChild(item);
       });
+      if (_searchTerm) applyFilter();
       let footer = sidebar.querySelector('.sgpt-sidebar-footer');
       let copyBtn = footer.querySelector('.sgpt-copy-to-chat-btn');
       if (!copyBtn) {
@@ -512,6 +530,9 @@ console.log('Snippet Saver content script loaded');
           loadSnippets((allSnippets) => {
             const text = allSnippets.map(s => s.text).join('\n\n');
             let input = document.querySelector('div#prompt-textarea[contenteditable="true"]');
+            if (!input) {
+              input = document.querySelector('div[contenteditable="true"]');
+            }
             if (!input) {
               input = Array.from(document.querySelectorAll('div[role="textbox"]')).find(el => el.isContentEditable && el.offsetParent !== null);
             }
@@ -752,6 +773,32 @@ console.log('Snippet Saver content script loaded');
       }
       #${SIDEBAR_ID} .sgpt-drop-zone.active {
         opacity: 1;
+      }
+
+      /* --- Search Input --- */
+      #${SIDEBAR_ID} .sgpt-search-container {
+        padding: 0.4em 0.75em;
+        flex-shrink: 0;
+      }
+      #${SIDEBAR_ID} .sgpt-search-input {
+        width: 100%;
+        padding: 0.4em 0.6em;
+        border: 1px solid var(--sgpt-border);
+        border-radius: 8px;
+        background: var(--sgpt-card-bg);
+        color: var(--sgpt-text);
+        font-size: 0.9em;
+        outline: none;
+        box-sizing: border-box;
+      }
+      #${SIDEBAR_ID} .sgpt-search-input::placeholder {
+        color: var(--sgpt-text-secondary);
+      }
+      #${SIDEBAR_ID} .sgpt-search-input:focus {
+        border-color: var(--sgpt-text-secondary);
+      }
+      #${SIDEBAR_ID} .sgpt-snippet-item.filtered-out {
+        display: none;
       }
 
       /* --- Drop Indicator --- */
