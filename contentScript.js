@@ -187,6 +187,7 @@ console.log('Snippet Saver content script loaded');
     });
     sidebar.addEventListener('drop', (e) => {
       e.preventDefault();
+      if (document.querySelector('.sgpt-snippet-item.dragging')) return;
       const dropZone = sidebar.querySelector('.sgpt-drop-zone');
       dropZone.classList.remove('active');
       const text = e.dataTransfer.getData('text/plain');
@@ -269,6 +270,7 @@ console.log('Snippet Saver content script loaded');
     btn.addEventListener('drop', (e) => {
       e.preventDefault();
       e.stopPropagation();
+      if (document.querySelector('.sgpt-snippet-item.dragging')) return;
       btn.classList.remove('sgpt-dragover');
       btn.style.background = 'var(--sgpt-bg)';
       const text = e.dataTransfer.getData('text/plain');
