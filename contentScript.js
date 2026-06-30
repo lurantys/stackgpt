@@ -347,6 +347,8 @@ console.log('Snippet Saver content script loaded');
         if (footer) {
           let deleteBtn = footer.querySelector('.sgpt-delete-all-btn');
           if (deleteBtn) deleteBtn.disabled = true;
+          let exportBtn = footer.querySelector('.sgpt-export-btn');
+          if (exportBtn) exportBtn.disabled = true;
         }
         return;
       }
@@ -582,6 +584,8 @@ console.log('Snippet Saver content script loaded');
         };
         footer.insertBefore(copyBtn, footer.firstChild);
       }
+      const exportBtn = footer.querySelector('.sgpt-export-btn');
+      if (exportBtn) exportBtn.disabled = !snippets.length;
       const deleteBtn = footer.querySelector('.sgpt-delete-all-btn');
       if (deleteBtn) {
         deleteBtn.disabled = !snippets.length;
@@ -956,6 +960,8 @@ console.log('Snippet Saver content script loaded');
         color: #dc2626;
         font-weight: 600;
       }
+      #${SIDEBAR_ID} .sgpt-copy-to-chat-btn:disabled,
+      #${SIDEBAR_ID} .sgpt-export-btn:disabled,
       #${SIDEBAR_ID} .sgpt-delete-all-btn:disabled {
         opacity: 0.35;
         cursor: default;
