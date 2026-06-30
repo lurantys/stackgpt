@@ -2,7 +2,7 @@
 
 Chrome extension to save text snippets from ChatGPT, Claude, Gemini, and Grok.
 
-<video src="demo.mov" controls width="100%"></video>
+<video src="demo.mp4" controls width="100%"></video>
 
 - Select text → click **Save snippet** or drag it to the sidebar / toggle button
 - Click a snippet to copy it, drag to reorder
