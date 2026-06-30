@@ -434,12 +434,16 @@ console.log('Snippet Saver content script loaded');
         if (!list.contains(e.relatedTarget)) hideIndicator();
       }
 
-      if (!list._dragReady) {
-        list.addEventListener('dragover', handleDragOver);
-        list.addEventListener('drop', handleDrop);
-        list.addEventListener('dragleave', handleDragLeave);
-        list._dragReady = true;
+      if (list._dragReady) {
+        list.removeEventListener('dragover', list._handlers.dragover);
+        list.removeEventListener('drop', list._handlers.drop);
+        list.removeEventListener('dragleave', list._handlers.dragleave);
       }
+      list._handlers = { dragover: handleDragOver, drop: handleDrop, dragleave: handleDragLeave };
+      list.addEventListener('dragover', list._handlers.dragover);
+      list.addEventListener('drop', list._handlers.drop);
+      list.addEventListener('dragleave', list._handlers.dragleave);
+      list._dragReady = true;
       snippets.forEach((snip, idx) => {
         const item = document.createElement('div');
         item.className = 'sgpt-snippet-item';
