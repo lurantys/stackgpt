@@ -343,6 +343,11 @@ console.log('Snippet Saver content script loaded');
         list.innerHTML = '<div class="sgpt-empty-state">Select text on the page to save your first snippet</div>';
         let copyBtn = sidebar.querySelector('.sgpt-copy-to-chat-btn');
         if (copyBtn) copyBtn.remove();
+        let footer = sidebar.querySelector('.sgpt-sidebar-footer');
+        if (footer) {
+          let deleteBtn = footer.querySelector('.sgpt-delete-all-btn');
+          if (deleteBtn) deleteBtn.disabled = true;
+        }
         return;
       }
       if (titleEl) titleEl.textContent = 'Snippets (' + snippets.length + ')';
