@@ -1,6 +1,6 @@
 {
   "scripts": {
-    "build": "npx terser contentScript.js -o contentScript.min.js -c passes=3 -m"
+    "build": "npx terser extension/contentScript.js -o extension/contentScript.min.js -c passes=3 -m"
   },
   "devDependencies": {
     "terser": "^5.48.0"

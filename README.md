@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="icon128.png" width="64" alt="StackGPT">
+  <img src="extension/icon128.png" width="64" alt="StackGPT">
 </p>
 
 <h1 align="center">StackGPT</h1>
@@ -36,4 +36,4 @@
 
 1. Go to `chrome://extensions`
 2. Enable **Developer mode** (top right)
-3. Click **Load unpacked** and select this folder
+3. Click **Load unpacked** and select the `extension/` folder
