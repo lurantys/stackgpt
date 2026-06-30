@@ -1,15 +1,37 @@
-# StackGPT
+<p align="center">
+  <img src="icon128.png" width="64" alt="StackGPT">
+</p>
 
-Chrome extension to save text snippets from ChatGPT, Claude, Gemini, and Grok.
+<h1 align="center">StackGPT</h1>
 
-![Demo](demo.gif)
+<p align="center">
+  Never lose a good chat again. Save snippets across every AI platform.
+</p>
 
-- Select text → click **Save snippet** or drag it to the sidebar / toggle button
-- Click a snippet to copy it, drag to reorder
-- Theme adapts automatically (dark/light)
-- Snippets stored in `chrome.storage.local` (shared across all platforms)
+<p align="center">
+  <a href="https://github.com/lurantys/stackgpt/releases">Download for Chrome</a>
+  ·
+  <a href="https://github.com/lurantys/stackgpt">View on GitHub</a>
+</p>
+
+---
+
+## Demo
+
+<video src="demo.mp4" autoplay muted loop playsinline></video>
+
+## Features
+
+- **Select & save** — highlight any text, click **Save snippet**, or drag it to the sidebar
+- **Click to copy** — click any saved snippet to copy it to your clipboard
+- **Drag to reorder** — rearrange snippets by dragging
+- **Auto theme** — matches your platform's dark/light mode
+- **Cross-platform** — works on ChatGPT, Claude, Gemini, and Grok
+- **Shared storage** — snippets in `chrome.storage.local` are available across all platforms
+- **Search & filter** — find snippets instantly
 
 ## Install
 
-1. Go to `chrome://extensions`, enable Developer mode
-2. "Load unpacked" → select this folder
+1. Go to `chrome://extensions`
+2. Enable **Developer mode** (top right)
+3. Click **Load unpacked** and select this folder
