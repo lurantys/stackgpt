@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/lurantys/stackgpt/releases">Download for Chrome</a>
+  <a href="https://github.com/lurantys/stackgpt/releases/download/latest/stackgpt-extension.zip">Download for Chrome</a>
   ·
   <a href="https://github.com/lurantys/stackgpt">View on GitHub</a>
 </p>
@@ -36,11 +36,11 @@
 
 ### Quick (download ZIP)
 
-[Download the latest ZIP](https://github.com/lurantys/stackgpt/archive/refs/heads/main.zip), unzip it, then:
+[Download stackgpt-extension.zip](https://github.com/lurantys/stackgpt/releases/download/latest/stackgpt-extension.zip), unzip it, then:
 
 1. Go to `chrome://extensions`
 2. Enable **Developer mode** (top right)
-3. Click **Load unpacked** and select the `extension/` folder inside
+3. Click **Load unpacked** and select the unzipped folder
 
 ### From source
 

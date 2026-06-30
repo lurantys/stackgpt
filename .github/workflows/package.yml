@@ -1,0 +1,23 @@
+name: Package extension
+on:
+  push:
+    branches: [main]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - run: cd extension && zip -r ../stackgpt-extension.zip . -x "newicon.png"
+      - uses: ncipollo/release-action@v1
+        with:
+          allowUpdates: true
+          removeArtifacts: true
+          name: latest
+          tag: latest
+          artifacts: stackgpt-extension.zip
+          artifactContentType: application/zip
+          makeLatest: true
+          omitBodyDuringUpdate: true
+          omitNameDuringUpdate: true
