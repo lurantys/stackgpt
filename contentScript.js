@@ -144,6 +144,7 @@ console.log('Snippet Saver content script loaded');
       </div>
       <div class="sgpt-snippet-list"></div>
       <div class="sgpt-sidebar-footer">
+        <button class="sgpt-delete-all-btn">Delete All</button>
         <button class="sgpt-export-btn">Export</button>
       </div>
     `;
@@ -563,6 +564,29 @@ console.log('Snippet Saver content script loaded');
         };
         footer.insertBefore(copyBtn, footer.firstChild);
       }
+      const deleteBtn = footer.querySelector('.sgpt-delete-all-btn');
+      if (deleteBtn) {
+        deleteBtn.disabled = !snippets.length;
+        if (!deleteBtn._listener) {
+          deleteBtn._listener = true;
+          deleteBtn.onclick = () => {
+            if (deleteBtn.classList.contains('confirm')) {
+              saveAll([], () => renderSnippets());
+              deleteBtn.textContent = 'Delete All';
+              deleteBtn.classList.remove('confirm');
+            } else {
+              deleteBtn.textContent = 'Confirm?';
+              deleteBtn.classList.add('confirm');
+              setTimeout(() => {
+                if (deleteBtn.classList.contains('confirm')) {
+                  deleteBtn.textContent = 'Delete All';
+                  deleteBtn.classList.remove('confirm');
+                }
+              }, 2500);
+            }
+          };
+        }
+      }
     });
   }
 
@@ -876,7 +900,8 @@ console.log('Snippet Saver content script loaded');
 
       /* --- Footer Buttons --- */
       #${SIDEBAR_ID} .sgpt-copy-to-chat-btn,
-      #${SIDEBAR_ID} .sgpt-export-btn {
+      #${SIDEBAR_ID} .sgpt-export-btn,
+      #${SIDEBAR_ID} .sgpt-delete-all-btn {
         background: transparent;
         color: var(--sgpt-text);
         border: 1px solid var(--sgpt-border);
@@ -892,6 +917,24 @@ console.log('Snippet Saver content script loaded');
         background: var(--sgpt-hover);
         border-color: var(--sgpt-text);
         color: var(--sgpt-text);
+      }
+      #${SIDEBAR_ID} .sgpt-delete-all-btn:hover:not(:disabled) {
+        background: #fef2f2;
+        color: #dc2626;
+        border-color: #fecaca;
+      }
+      #${SIDEBAR_ID} .sgpt-delete-all-btn.confirm {
+        background: #fef2f2;
+        color: #dc2626;
+        border-color: #fecaca;
+        font-weight: 600;
+      }
+      #${SIDEBAR_ID} .sgpt-delete-all-btn:disabled {
+        opacity: 0.35;
+        cursor: default;
+      }
+      #${SIDEBAR_ID} .sgpt-delete-all-btn {
+        margin-right: auto;
       }
 
       /* --- Empty State --- */
