@@ -19,9 +19,7 @@
 ## Demo
 
 <p align="center">
-  <a href="demo.mp4">
-    <img src="demo-thumb.jpg" alt="StackGPT demo video" width="100%">
-  </a>
+  <img src="demoscreen-resized.png" alt="StackGPT demo screenshot" width="100%">
 </p>
 
 ## Features
