@@ -36,11 +36,11 @@
 
 ### Quick (download ZIP)
 
-[Download stackgpt-extension.zip](stackgpt-extension.zip), unzip it, then:
+[Download the latest ZIP](https://github.com/lurantys/stackgpt/archive/refs/heads/main.zip), unzip it, then:
 
 1. Go to `chrome://extensions`
 2. Enable **Developer mode** (top right)
-3. Click **Load unpacked** and select the unzipped folder
+3. Click **Load unpacked** and select the `extension/` folder inside
 
 ### From source
 
