@@ -34,6 +34,16 @@
 
 ## Install
 
+### Quick (download ZIP)
+
+[Download stackgpt-extension.zip](stackgpt-extension.zip), unzip it, then:
+
 1. Go to `chrome://extensions`
 2. Enable **Developer mode** (top right)
+3. Click **Load unpacked** and select the unzipped folder
+
+### From source
+
+1. Clone the repo: `git clone https://github.com/lurantys/stackgpt.git`
+2. Go to `chrome://extensions`, enable **Developer mode**
 3. Click **Load unpacked** and select the `extension/` folder
