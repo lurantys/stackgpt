@@ -43,17 +43,8 @@ console.log('Snippet Saver content script loaded');
           if (rgb && rgb.length >= 3) {
             const b = (parseInt(rgb[0]) * 299 + parseInt(rgb[1]) * 587 + parseInt(rgb[2]) * 114) / 1000;
             return b < 128 ? 'dark' : 'light';
-    }
-  }
-
-  function applyFilter() {
-    const items = document.querySelectorAll('.sgpt-snippet-item');
-    const search = _searchTerm.toLowerCase().trim();
-    items.forEach(item => {
-      const text = item.querySelector('.sgpt-snippet-text').textContent.toLowerCase();
-      item.classList.toggle('filtered-out', search && !text.includes(search));
-    });
-  }
+          }
+        }
       }
       return 'light';
     } catch (e) {
@@ -239,6 +230,15 @@ console.log('Snippet Saver content script loaded');
       sidebar.classList.remove('sgpt-sidebar-visible');
       sidebar.style.transform = 'translateX(100%)';
     }
+  }
+
+  function applyFilter() {
+    const items = document.querySelectorAll('.sgpt-snippet-item');
+    const search = _searchTerm.toLowerCase().trim();
+    items.forEach(item => {
+      const text = item.querySelector('.sgpt-snippet-text').textContent.toLowerCase();
+      item.classList.toggle('filtered-out', search && !text.includes(search));
+    });
   }
 
   function createToggleButton() {
