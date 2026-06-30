@@ -18,7 +18,11 @@
 
 ## Demo
 
-<video src="demo.mp4" autoplay muted loop playsinline></video>
+<p align="center">
+  <a href="demo.mp4">
+    <img src="demo-thumb.jpg" alt="StackGPT demo video" width="100%">
+  </a>
+</p>
 
 ## Features
 
