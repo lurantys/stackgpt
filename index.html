@@ -14,7 +14,7 @@
     body {
       font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
       background: #fafafa;
-      color: #1a1a2e;
+      color: #111827;
       min-height: 100vh;
       overflow-x: hidden;
     }
@@ -30,7 +30,7 @@
       z-index: 100;
     }
     .nav-logo {
-      font-size: 1.25rem; font-weight: 700; color: #1a1a2e;
+      font-size: 1.25rem; font-weight: 700; color: #111827;
       display: flex; align-items: center; gap: 0.5em;
       text-decoration: none;
     }
@@ -39,14 +39,13 @@
       font-size: 0.875rem; font-weight: 600;
       padding: 0.6em 1.5em;
       border-radius: 100px;
-      border: 1.5px solid #1a1a2e;
-      background: transparent;
-      color: #1a1a2e;
+      background: #2d7d63;
+      color: #fff;
       cursor: pointer;
-      transition: background 0.2s, color 0.2s;
+      transition: opacity 0.2s;
       text-decoration: none;
     }
-    .nav-cta:hover { background: #1a1a2e; color: #fafafa; }
+    .nav-cta:hover { opacity: 0.85; }
 
     /* --- Hero --- */
     main {
@@ -65,11 +64,11 @@
       font-weight: 800;
       line-height: 1.08;
       letter-spacing: -0.03em;
-      color: #1a1a2e;
+      color: #111827;
       margin-bottom: 0.5em;
     }
-    h1 .highlight-red { color: #e63946; }
-    h1 .highlight-serif { font-family: 'Playfair Display', serif; font-style: italic; font-weight: 400; }
+    h1 .highlight-green { color: #2d7d63; }
+    h1 .highlight-serif { font-family: 'Playfair Display', serif; font-style: italic; font-weight: 400; color: #111827; }
     .subheadline {
       font-size: clamp(1.1rem, 2vw, 1.4rem);
       font-weight: 400;
@@ -87,25 +86,25 @@
       padding: 0.85em 2.2em;
       border-radius: 100px;
       border: none;
-      background: #1a1a2e;
+      background: #111827;
       color: #fff;
       cursor: pointer;
       transition: opacity 0.2s;
       text-decoration: none;
     }
-    .cta-primary:hover { opacity: 0.85; }
+    .cta-primary:hover { opacity: 0.8; }
     .cta-secondary {
       font-size: 1rem; font-weight: 600;
       padding: 0.85em 2.2em;
       border-radius: 100px;
       border: 1.5px solid #d1d5db;
       background: transparent;
-      color: #1a1a2e;
+      color: #111827;
       cursor: pointer;
       transition: border-color 0.2s, background 0.2s;
       text-decoration: none;
     }
-    .cta-secondary:hover { border-color: #1a1a2e; background: #f3f4f6; }
+    .cta-secondary:hover { border-color: #2d7d63; color: #2d7d63; background: #f0fdf9; }
     .micro-copy {
       font-size: 0.8rem; font-style: italic;
       color: #9ca3af;
@@ -129,7 +128,6 @@
       transition: transform 0.3s ease;
     }
     .preview-card:hover { transform: translateY(-4px); }
-    .preview-card img,
     .preview-card video {
       width: 100%; height: 100%;
       object-fit: cover;
@@ -175,7 +173,7 @@
   <main>
     <div class="hero-content">
       <h1>
-        Never lose a good <span class="highlight-red">chat</span> again.<br>
+        Never lose a good <span class="highlight-green">chat</span> again.<br>
         Save snippets across <span class="highlight-serif">every</span> AI platform.
       </h1>
       <p class="subheadline">
@@ -190,7 +188,7 @@
 
     <div class="preview-section">
       <div class="preview-card">
-        <img src="demo.gif" alt="StackGPT demo">
+        <video src="demo.mp4" autoplay muted loop playsinline></video>
       </div>
     </div>
   </main>
