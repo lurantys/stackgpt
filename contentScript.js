@@ -583,11 +583,13 @@ console.log('Snippet Saver content script loaded');
   }
 
   // --- SELECTION HANDLING ---
+  let _selectionTimer = null;
   function onSelection(e) {
+    if (_selectionTimer) return;
+    _selectionTimer = setTimeout(() => { _selectionTimer = null; }, 150);
     try {
       const sel = window.getSelection();
-      if (!sel || sel.isCollapsed) return;
-      // Always show save button for any selection (not just inside <main>)
+      if (!sel || sel.isCollapsed || !sel.toString().trim()) return;
       showSaveButton(sel);
     } catch (e) {
       console.error('Selection error:', e);
@@ -626,7 +628,6 @@ console.log('Snippet Saver content script loaded');
       saveBtn.style.top = `${top}px`;
       saveBtn.style.left = `${window.scrollX + rect.left + rect.width/2 - saveBtn.offsetWidth/2}px`;
 
-      // Use addEventListener for reliability
       saveBtn.addEventListener('mousedown', (e) => {
         e.preventDefault();
         e.stopPropagation();
@@ -641,7 +642,6 @@ console.log('Snippet Saver content script loaded');
           date: Date.now(),
           source: getPlatform(),
         };
-        console.log('Saving snippet:', snippet);
         saveBtn.remove();
         saveBtn = null;
         sel.removeAllRanges();
@@ -651,10 +651,6 @@ console.log('Snippet Saver content script loaded');
         });
       });
 
-      // Remove if user clicks elsewhere
-      setTimeout(() => {
-        document.addEventListener('mousedown', hideSaveBtn, { once: true });
-      }, 0);
     } catch (e) {
       console.error('Show save button error:', e);
     }
@@ -891,11 +887,15 @@ console.log('Snippet Saver content script loaded');
   function main() {
     try {
       injectStyles();
+      migrateFromLocalStorage();
       createSidebar();
       createToggleButton();
       document.addEventListener('selectionchange', onSelection);
       observeThemeChanges();
       syncTheme();
+      document.addEventListener('mousedown', (e) => {
+        if (saveBtn && e.target !== saveBtn && !saveBtn.contains(e.target)) hideSaveBtn();
+      });
       document.addEventListener('click', (e) => {
         if (!sidebarVisible) return;
         const sidebar = document.getElementById(SIDEBAR_ID);
