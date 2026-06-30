@@ -583,7 +583,8 @@ console.log('Snippet Saver content script loaded');
         if (!deleteBtn._listener) {
           deleteBtn._listener = true;
           const defaultHTML = deleteBtn.innerHTML;
-          deleteBtn.onclick = () => {
+          deleteBtn.onclick = (e) => {
+            e.stopPropagation();
             if (deleteBtn.classList.contains('confirm')) {
               saveAll([], () => renderSnippets());
               deleteBtn.innerHTML = defaultHTML;
